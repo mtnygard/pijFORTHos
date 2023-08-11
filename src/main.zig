@@ -90,13 +90,13 @@ fn kernelInit() !void {
 }
 
 fn supplyAddress(name: []const u8, addr: usize) void {
-    interpreter.defineVariable(name, Value{ .addr = addr }) catch |err| {
+    interpreter.defineVariable(name, Value.mkAddress(addr)) catch |err| {
         try frame_buffer_console.print("Failed to define {s}: {any}\n", .{ name, err });
     };
 }
 
 fn supplyUsize(name: []const u8, sz: usize) void {
-    interpreter.defineVariable(name, Value{ .sz = sz }) catch |err| {
+    interpreter.defineVariable(name, Value.mkLong(sz)) catch |err| {
         try frame_buffer_console.print("Failed to define {s}: {any}\n", .{ name, err });
     };
 }

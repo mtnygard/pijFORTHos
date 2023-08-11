@@ -21,7 +21,7 @@ const ReturnStack = stack.Stack(i32);
 
 const ValueDictionary = dict.Dictionary(Value);
 
-const WordFunction = *const fn (self: *Forth) ForthError!void;
+pub const WordFunction = *const fn (self: *Forth) ForthError!void;
 
 const ForthTokenIterator = @import("parser.zig").ForthTokenIterator;
 
@@ -49,7 +49,8 @@ pub const Forth = struct {
         self.rstack = ReturnStack.init(allocator);
         self.dictionary = ValueDictionary.init(allocator);
         try core.defineCore(self);
-        try self.evalBuffer(init_f);
+        try core.wordClearScreen(self);
+        //try self.evalBuffer(init_f);
     }
 
     pub fn print(self: *Forth, comptime fmt: []const u8, args: anytype) !void {
@@ -61,7 +62,7 @@ pub const Forth = struct {
     }
 
     pub fn evalFP(self: *Forth, v: Value) dict.ForthError!void {
-        const fp: *fn (self: *Forth) void = v.fp;
+        const fp =  v.extractFunction();
         try fp(self);
     }
 
@@ -71,31 +72,37 @@ pub const Forth = struct {
     }
 
     pub fn _evalValue(self: *Forth, v: Value) !void {
-        switch (v) {
-            .w => |name| {
-                const assoc_value = try self.dictionary.get(name);
+        const vt = v.typeOf();
+        switch (vt) {
+            .word => {
+                const name = v.extractWord();
+                try self.print("eval word {any}\n", .{name});
+                const assoc_value = try self.dictionary.get(name.*);
                 try evalValue(self, assoc_value);
             },
-            .fp => |p| {
-                //var wordf = @intToPtr(WordFunction, p);
-                var wordf: WordFunction = @ptrFromInt(p);
+            .function => {
+                const wordf = v.extractFunction();
                 try wordf(self);
             },
-            .call => |address| {
-                try inner(self, address);
+            .call => {
+                const location = v.extractCall();
+                try inner(self, location);
             },
-            else => |_| {
+            else => {
                 try self.stack.push(v);
             },
         }
     }
 
     pub fn evalValue(self: *Forth, v: Value) ForthError!void {
-        // try self.print("eval value {any}\n", .{v});
-        switch (v) {
-            .w => |name| {
-                const entry = try self.dictionary.getEntry(name);
-                // try self.print("word: {s} entry: {any}\n", .{ name, entry });
+        try self.print("eval value {any}\n", .{v});
+        const t = v.typeOf();
+        switch (t) {
+            .word => {
+                const name = v.extractWord();
+                try self.print("Name: {any}!!!\n\n", .{name});
+                const entry = try self.dictionary.getEntry(name.*);
+                try self.print("word: {any} entry: {any}\n", .{ name, entry });
                 if (entry.immediate) {
                     try _evalValue(self, entry.value);
                 } else if (self.composing) {
@@ -104,19 +111,19 @@ pub const Forth = struct {
                     try _evalValue(self, entry.value);
                 }
             },
-            .fp => |p| {
+            .function => {
                 if (self.composing) {
                     self.addToDefinition(v);
                 } else {
-                    var wordf: WordFunction = @ptrFromInt(p);
+                    const wordf = v.extractFunction();
                     try wordf(self);
                 }
             },
-            .call => |address| {
+            .call => {
                 if (self.composing) {
                     self.addToDefinition(v);
                 } else {
-                    try inner(self, address);
+                    try inner(self, v.extractCall());
                 }
             },
             else => |_| {
@@ -133,13 +140,15 @@ pub const Forth = struct {
     }
 
     pub fn definePrimitive(self: *Forth, name: []const u8, fp: WordFunction, immediate: bool) !void {
-        // try self.print("define word {s} -> {*}\n", .{ name, fp });
-        try self.define(name, Value{ .fp = @intFromPtr(fp) }, immediate);
+        try self.print("defining prim: [{s}]\n", .{name});
+        const v = Value.mkFunction(fp);
+        try self.define(name, v, immediate);
     }
 
     pub fn defineSecondary(self: *Forth, name: []const u8, address: i32) !void {
         // try self.print("define secondary {s} {}\n", .{ name, address });
-        try self.define(name, Value{ .call = address }, false);
+        const v = Value.mkCall(address);
+        try self.define(name, v, false);
     }
 
     pub fn defineVariable(self: *Forth, name: []const u8, v: Value) !void {
@@ -190,6 +199,8 @@ pub const Forth = struct {
 
     pub fn repl(self: *Forth) !void {
         // outer loop, one line at a time.
+
+
         while (true) {
             self.emitPrompt("OK>> ");
             var line_len: usize = self.readline(&self.line_buffer) catch 0;

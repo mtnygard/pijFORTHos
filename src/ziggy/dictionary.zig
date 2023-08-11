@@ -67,7 +67,7 @@ pub fn Dictionary(comptime DType: type) type {
                 const entry = self.contents.items[@intCast(i)];
                 var this_name = entry.name;
                 var l = std.mem.indexOfSentinel(u8, 0, &this_name);
-                if (std.mem.eql(u8, this_name[0..l], name)) {
+                if (std.mem.eql(u8, this_name[0..l], name[0..l])) {
                     return entry;
                 }
                 i -= 1;

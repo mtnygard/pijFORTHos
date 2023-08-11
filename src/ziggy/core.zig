@@ -33,9 +33,7 @@ pub fn wordColon(forth: *Forth) !void {
 }
 
 pub fn wordSemi(forth: *Forth) !void {
-    forth.memory[@intCast(forth.nextFree)] = Value{
-        .fp = @intFromPtr(&wordReturn),
-    };
+    forth.memory[@intCast(forth.nextFree)] = Value.mkFunction(&wordReturn);
     forth.nextFree += 1;
     try forth.defineSecondary(&forth.new_word_name, forth.new_word_def);
     forth.composing = false;
@@ -46,7 +44,7 @@ pub fn wordSemi(forth: *Forth) !void {
 pub fn wordEmit(forth: *Forth) !void {
     var s = &forth.stack;
     const a = try s.pop();
-    var ch = try a.asChar();
+    var ch = a.extractCharacter();
     forth.console.emit(ch);
 }
 
@@ -54,14 +52,14 @@ pub fn wordEmit(forth: *Forth) !void {
 pub fn wordKey(forth: *Forth) !void {
     var s = &forth.stack;
     var ch = forth.getc();
-    try s.push(Value{ .ch = ch });
+    try s.push(Value.mkCharacter(ch));
 }
 
 // -- bool
 pub fn wordKeyMaybe(forth: *Forth) !void {
     var s = &forth.stack;
     var byte_available = forth.char_available();
-    try s.push(Value{ .i = if (byte_available) 1 else 0 });
+    try s.push(Value.mkUnsigned(if (byte_available) 1 else 0));
 }
 
 /// --
@@ -218,7 +216,7 @@ pub fn wordAdd(forth: *Forth) !void {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
-    try s.push(try a.add(&b));
+    try s.push(try a.add(b));
 }
 
 /// n n -- n
@@ -226,7 +224,7 @@ pub fn wordSub(forth: *Forth) !void {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
-    try s.push(try b.sub(&a));
+    try s.push(try b.sub(a));
 }
 
 /// --
@@ -258,42 +256,56 @@ pub fn wordInfo(forth: *Forth) ForthError!void {
 /// --
 pub fn wordNext(forth: *Forth) ForthError!void {
     var nexti_address: usize = @intFromPtr(&forth.nexti);
-    var v = Value{ .addr = nexti_address };
+    var v = Value.mkAddress(nexti_address);
     try forth.stack.push(v);
 }
 
 /// addr -- i32
 pub fn wordLoadI32(forth: *Forth) !void {
-    const addressValue = try forth.stack.pop();
-    if (addressValue != ValueType.addr) {
+    const a_v = try forth.stack.pop();
+
+    // Accept addresses and generic unsigned values.
+
+    const a_type = a_v.typeOf();
+
+    if (a_type != ValueType.address and a_type != ValueType.unsigned){
         return ForthError.BadOperation;
     }
-    const p: *i32 = @ptrFromInt(addressValue.addr);
-    const v = Value{ .i = p.* };
+
+    const p: *i32 = @ptrFromInt(a_v.extractAddress());
+    const v = Value.mkSigned(p.*);
     try forth.stack.push(v);
 }
 
 /// i32 addr --
 pub fn wordStoreI32(forth: *Forth) !void {
-    const addressValue = try forth.stack.pop();
+    const a_v = try forth.stack.pop();
     const v = try forth.stack.pop();
 
-    if (addressValue != ValueType.addr) {
+    const a_type = a_v.typeOf();
+
+    // Accept addresses and generic unsigned values.
+
+    if (a_type != ValueType.address and a_type != ValueType.unsigned){
         return ForthError.BadOperation;
     }
 
-    if (v != ValueType.i) {
+    const v_type = v.typeOf();
+
+    // Accept any of the 32 bit values.
+
+    if (v_type != ValueType.call and v_type != ValueType.signed and v_type != ValueType.unsigned){
         return ForthError.BadOperation;
     }
-    const p: *i32 = @ptrFromInt(addressValue.addr);
-    p.* = v.i;
+    const p: *i32 = @ptrFromInt(a_v.extractAddress());
+    p.* = v.extractSigned();
 }
 
 /// -- n
 pub fn wordValueSize(forth: *Forth) ForthError!void {
     const l: usize = @sizeOf(Value);
     try forth.print("size of value: {d}\n", .{l});
-    try forth.stack.push(Value{ .sz = l });
+    try forth.stack.push(Value.mkUnsigned(l));
 }
 
 pub fn defineCore(forth: *Forth) !void {
