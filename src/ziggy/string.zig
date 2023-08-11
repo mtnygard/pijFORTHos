@@ -4,11 +4,16 @@ const ForthError = @import("errors.zig").ForthError;
 const Allocator = std.mem.Allocator;
 
 pub fn same(a: []const u8, b: []const u8) bool {
-   var l = chIndex(0, a) catch {
-       std.debug.print("Null terminator not found! {s}\n", .{a});
+   const alen = chIndex(0, a) catch a.len;
+   const blen = chIndex(0, b) catch b.len;
+
+   std.debug.print("same: {s} {s} {} {}\n", .{a, b, alen, blen});
+
+   if (alen != blen) {
        return false;
-   };
-   return std.mem.eql(u8, a[0..l], b[0..l]);
+   }
+
+   return std.mem.eql(u8, a[0..alen], b[0..blen]);
 }
  
 pub fn chIndex(ch: u8, s: []const u8) !usize {
