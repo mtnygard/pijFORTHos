@@ -158,7 +158,7 @@ pub const Forth = struct {
     // If we are not compiling, copy the string to the temp space in the interpreter
     // and push a reference to the string onto the stack.
     fn evalString(this: *Forth, token: []const u8) !void { 
-        try this.print("eval string: {any} {s}\n", .{this, token});
+        try this.print("eval string: {s}\n", .{token});
         const l = token.len - 1;
         const s = token[1..l];
         if(this.compiling) {
