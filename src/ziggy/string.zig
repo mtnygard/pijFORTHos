@@ -3,11 +3,18 @@ const ForthError = @import("errors.zig").ForthError;
 
 const Allocator = std.mem.Allocator;
 
+pub const MaxLineLen = 256;
+pub const LineBuffer = [MaxLineLen:0]u8;
+
+pub fn newline(ch: u8) bool {
+    return ch == '\r' or ch == '\n';
+}
+
 pub fn same(a: []const u8, b: []const u8) bool {
    const alen = chIndex(0, a) catch a.len;
    const blen = chIndex(0, b) catch b.len;
 
-   std.debug.print("same: {s} {s} {} {}\n", .{a, b, alen, blen});
+   //std.debug.print("same: {s} {s} {} {}\n", .{a, b, alen, blen});
 
    if (alen != blen) {
        return false;
