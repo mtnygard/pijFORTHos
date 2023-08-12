@@ -23,7 +23,7 @@ pub fn Stack(comptime T: type) type {
         }
 
         pub fn reset(self: *Self) !void {
-            while(!self.isEmpty()) {
+            while (!self.isEmpty()) {
                 _ = try self.pop();
             }
         }

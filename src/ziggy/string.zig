@@ -11,25 +11,25 @@ pub fn newline(ch: u8) bool {
 }
 
 pub fn same(a: []const u8, b: []const u8) bool {
-   const alen = chIndex(0, a) catch a.len;
-   const blen = chIndex(0, b) catch b.len;
+    const alen = chIndex(0, a) catch a.len;
+    const blen = chIndex(0, b) catch b.len;
 
-   //std.debug.print("same: {s} {s} {} {}\n", .{a, b, alen, blen});
+    //std.debug.print("same: {s} {s} {} {}\n", .{a, b, alen, blen});
 
-   if (alen != blen) {
-       return false;
-   }
+    if (alen != blen) {
+        return false;
+    }
 
-   return std.mem.eql(u8, a[0..alen], b[0..blen]);
+    return std.mem.eql(u8, a[0..alen], b[0..blen]);
 }
- 
+
 pub fn chIndex(ch: u8, s: []const u8) !usize {
-   for(0..s.len) |i| {
-       if (s[i] == ch) {
-           return i;
-       }
-   }
-   return ForthError.BadOperation;
+    for (0..s.len) |i| {
+        if (s[i] == ch) {
+            return i;
+        }
+    }
+    return ForthError.BadOperation;
 }
 
 pub fn copyTo(dst: [:0]u8, src: []const u8) void {
@@ -49,19 +49,19 @@ pub fn copyTo(dst: [:0]u8, src: []const u8) void {
 pub fn dupCString(allocator: Allocator, src: [*:0]const u8) ![*]u8 {
     const len = std.mem.indexOfSentinel(u8, 0, src);
     const result = try allocator.alloc(u8, len);
-    for(0..len) |i| {
+    for (0..len) |i| {
         result[i] = src[i];
     }
     //result[len] = 0;
     return result.ptr;
 }
 
-pub fn asSlice(s: [*] u8) [] u8 {
-  var l: usize = 0;
-  while(s[l] != 0) {
-    l += 1;
-  }
-  return s[0..l];
+pub fn asSlice(s: [*]u8) []u8 {
+    var l: usize = 0;
+    while (s[l] != 0) {
+        l += 1;
+    }
+    return s[0..l];
 }
 
 pub fn clear(s: [:0]u8) void {

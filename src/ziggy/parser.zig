@@ -40,7 +40,7 @@ pub const ForthTokenIterator = struct {
     index: usize = 0,
 
     pub fn init(buffer: []const u8) ForthTokenIterator {
-        return .{.buffer = buffer, .index = 0};
+        return .{ .buffer = buffer, .index = 0 };
     }
     pub fn create(allocator: *Allocator, buffer: []const u8) *ForthTokenIterator {
         var result = allocator.create(ForthTokenIterator);
@@ -83,7 +83,7 @@ pub const ForthTokenIterator = struct {
             end += 1;
             //print("dealing with quoted string, index: {}\n", .{self.index});
             while (end < self.buffer.len and self.buffer[end] != '"') : (end += 1) {}
-            if (end < self.buffer.len ) {
+            if (end < self.buffer.len) {
                 end += 1;
             }
         } else {

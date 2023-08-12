@@ -33,7 +33,6 @@ pub const OpCode = enum(u64) {
     push_string = 3,
 };
 
-
 pub const Forth = struct {
     allocator: Allocator = undefined,
     console: *fbcons.FrameBufferConsole = undefined,
@@ -47,7 +46,7 @@ pub const Forth = struct {
     string_buffer: string.LineBuffer = undefined,
     words: ForthTokenIterator = undefined,
 
-    pub fn init(this: *Forth, a: Allocator, c: *fbcons.FrameBufferConsole)!void{
+    pub fn init(this: *Forth, a: Allocator, c: *fbcons.FrameBufferConsole) !void {
         this.allocator = a;
         this.console = c;
         this.stack = DataStack.init(&a);
@@ -76,7 +75,7 @@ pub const Forth = struct {
     pub fn findWord(this: *Forth, name: []const u8) ?*Header {
         //print("Finding word: {s}\n", .{name});
         var e = this.lastWord;
-        while(e) |entry| {
+        while (e) |entry| {
             //print("Name: {s}\n", .{entry.name});
             if (string.same(&entry.name, name)) {
                 return entry;
@@ -88,9 +87,9 @@ pub const Forth = struct {
 
     // Define a primitive (i.e. a word backed up by a zig function).
     pub fn definePrimitive(this: *Forth, name: []const u8, f: WordFunction, immed: bool) !*Header {
-      const header = try this.startWord(name, f, immed);
-      try this.completeWord();
-      return header;
+        const header = try this.startWord(name, f, immed);
+        try this.completeWord();
+        return header;
     }
 
     // Define a variable with a single u64 value. What we really end up with
@@ -106,7 +105,7 @@ pub const Forth = struct {
     // Start a new word in the interpreter. Dictionary searches will not find
     // the new word until completeWord is called.
     pub fn startWord(this: *Forth, name: []const u8, f: WordFunction, immediate: bool) !*Header {
-        if(this.compiling) {
+        if (this.compiling) {
             return ForthError.AlreadyCompiling;
         }
         try this.print("Start word: name: {s}\n", .{name});
@@ -118,7 +117,7 @@ pub const Forth = struct {
 
     // Finish out a new word and add it to the dictionary.
     pub fn completeWord(this: *Forth) !void {
-        if(!this.compiling) {
+        if (!this.compiling) {
             return ForthError.NotCompiling;
         }
         try this.print("Complete word: name: {s}\n", .{this.newWord.?.name});
@@ -133,7 +132,7 @@ pub const Forth = struct {
     pub fn evalToken(this: *Forth, token: []const u8) !void {
         var header = this.findWord(token);
 
-        if(header) |h| {
+        if (header) |h| {
             try this.evalHeader(h);
         } else if (token[0] == '"') {
             try this.evalString(token);
@@ -145,23 +144,23 @@ pub const Forth = struct {
 
     // If we are compiling, compile the code to push the number onto the stack.
     // If we are not compiling, just push the numnber onto the stack.
-    fn evalNumber(this: *Forth, i: u64) !void { 
-        if(this.compiling) {
-          this.addOpCode(OpCode.push_u64);
-          this.addNumber(i);
+    fn evalNumber(this: *Forth, i: u64) !void {
+        if (this.compiling) {
+            this.addOpCode(OpCode.push_u64);
+            this.addNumber(i);
         } else {
-          try this.stack.push(i);
+            try this.stack.push(i);
         }
     }
 
     // If we are compiling, compile the code to push the string onto the stack.
     // If we are not compiling, copy the string to the temp space in the interpreter
     // and push a reference to the string onto the stack.
-    fn evalString(this: *Forth, token: []const u8) !void { 
+    fn evalString(this: *Forth, token: []const u8) !void {
         try this.print("eval string: {s}\n", .{token});
         const l = token.len - 1;
         const s = token[1..l];
-        if(this.compiling) {
+        if (this.compiling) {
             this.addOpCode(OpCode.push_string);
             this.addString(s);
         } else {
@@ -173,7 +172,7 @@ pub const Forth = struct {
     // If the header is marked immediate, execute it.
     // Otherwise, if we are compiling, compile a call to the header.
     // Otherwise just execute it.
-    fn evalHeader(this: *Forth, header: *Header) !void { 
+    fn evalHeader(this: *Forth, header: *Header) !void {
         if ((!this.compiling) or (header.immediate)) {
             var fake_body: [1]u64 = .{0};
             _ = try header.func(this, &fake_body, 0, header);
@@ -287,7 +286,7 @@ pub const Forth = struct {
             while (word != null) : (word = this.words.next()) {
                 if (word) |w| {
                     this.evalToken(w) catch |err| {
-                        try this.print("error: {s} {any}\n", .{w, err});
+                        try this.print("error: {s} {any}\n", .{ w, err });
                         this.reset() catch {
                             try this.print("Not looking good, can't reset Forth!\n", .{});
                         };
@@ -308,7 +307,7 @@ pub const Forth = struct {
         while (word != null) : (word = this.words.next()) {
             if (word) |w| {
                 this.evalToken(w) catch |err| {
-                    try this.print("error: {s} {any}\n", .{w, err});
+                    try this.print("error: {s} {any}\n", .{ w, err });
                 };
             }
         }
@@ -316,4 +315,3 @@ pub const Forth = struct {
         this.words = undefined;
     }
 };
-

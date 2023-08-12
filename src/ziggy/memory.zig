@@ -26,12 +26,12 @@ pub const Header = struct {
     pub fn bodyOfType(this: *Header, comptime T: type) T {
         const p = this.bodyPointer();
         return @alignCast(@ptrCast(alignByType(p, T)));
-    } 
+    }
 
     pub fn bodyPointer(this: *Header) [*]u8 {
         const i: usize = @intFromPtr(this) + @sizeOf(Header);
         return @ptrFromInt(i);
-    } 
+    }
 };
 
 pub fn alignByType(p: [*]u8, comptime T: type) [*]u8 {
@@ -39,19 +39,19 @@ pub fn alignByType(p: [*]u8, comptime T: type) [*]u8 {
 }
 
 pub fn alignBy(p: [*]u8, alignment: usize) [*]u8 {
-     const i: usize = @intFromPtr(p);
-     return @ptrFromInt(intAlignBy(i, alignment));
+    const i: usize = @intFromPtr(p);
+    return @ptrFromInt(intAlignBy(i, alignment));
 }
 
 pub fn intAlignBy(i: u64, alignment: usize) u64 {
-     var words = (i + alignment - 1) / alignment;
-     return words * alignment;
+    var words = (i + alignment - 1) / alignment;
+    return words * alignment;
 }
 
 pub const Memory = struct {
-    p: [*]u8,                // The data
-    length: usize,           // Length of the data.
-    current: [*]u8,          // Next Free memory space.
+    p: [*]u8, // The data
+    length: usize, // Length of the data.
+    current: [*]u8, // Next Free memory space.
     alignment: usize = @alignOf(*void),
 
     pub fn init(p: [*]u8, length: usize) Memory {
@@ -100,10 +100,9 @@ pub const Memory = struct {
     fn rawAddBytes(this: *Memory, src: [*]u8, n: usize) [*]u8 {
         //print("raw add bytes: n: {}\n", .{n});
         var current = this.current;
-        for(0..n) |i| {
+        for (0..n) |i| {
             current[i] = src[i];
         }
         return current + n;
     }
 };
-

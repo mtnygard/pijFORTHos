@@ -22,51 +22,51 @@ const Header = memory_module.Header;
 
 // This is the inner interpreter, effectively the word
 // that runs all the secondary words.
-pub fn inner(forth: *Forth, _: [*] u64, _: u64, header: *Header) ForthError!u64 { 
-  var body = header.bodyOfType([*]u64);
-  var i: usize = 0;
-  while(true) {
-    switch(body[i]) {
-      @intFromEnum(OpCode.stop) => break,
+pub fn inner(forth: *Forth, _: [*]u64, _: u64, header: *Header) ForthError!u64 {
+    var body = header.bodyOfType([*]u64);
+    var i: usize = 0;
+    while (true) {
+        switch (body[i]) {
+            @intFromEnum(OpCode.stop) => break,
 
-        @intFromEnum(OpCode.push_string) => {
-          const data_size = body[i + 1];
-          var p_string: [*]u8 = @ptrCast(body + 2);
-          try forth.stack.push(@intFromPtr(p_string));
-          i += data_size + 1;
-        },
+            @intFromEnum(OpCode.push_string) => {
+                const data_size = body[i + 1];
+                var p_string: [*]u8 = @ptrCast(body + 2);
+                try forth.stack.push(@intFromPtr(p_string));
+                i += data_size + 1;
+            },
 
-        @intFromEnum(OpCode.push_u64) => {
-          try forth.stack.push(body[i+1]);
-          i += 2;
-        },
+            @intFromEnum(OpCode.push_u64) => {
+                try forth.stack.push(body[i + 1]);
+                i += 2;
+            },
 
-        else => {
-          const p : *Header = @ptrFromInt(body[i]);
-          const delta = try p.func(forth, body, i, p);
-          i = i + 1 + delta;
-        },
+            else => {
+                const p: *Header = @ptrFromInt(body[i]);
+                const delta = try p.func(forth, body, i, p);
+                i = i + 1 + delta;
+            },
+        }
     }
-  }
-  return 0;
+    return 0;
 }
 
 // Begin the definition of a new secondary word.
-pub fn wordColon(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordColon(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var name = forth.words.next() orelse return ForthError.WordReadError;
     _ = try forth.startWord(name, &inner, false);
     return 0;
 }
 
 // Commplete a secondary word.
-pub fn wordSemi(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordSemi(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     forth.addOpCode(OpCode.stop);
     try forth.completeWord();
     return 0;
 }
 
 // a -- ()
-pub fn wordEmit(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {  
+pub fn wordEmit(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     const a = try forth.stack.pop();
     var ch: u8 = @intCast(a);
     forth.console.emit(ch);
@@ -74,46 +74,46 @@ pub fn wordEmit(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 // -- ch
-pub fn wordKey(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordKey(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var ch = forth.getc();
     try forth.stack.push(@intCast(ch));
     return 0;
 }
 
 // -- bool
-pub fn wordKeyMaybe(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordKeyMaybe(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var byte_available = forth.char_available();
     try forth.stack.push(if (byte_available) 1 else 0);
     return 0;
 }
 
 /// --
-pub fn wordCr(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordCr(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     forth.putc(0x0a);
     return 0;
 }
 
 /// --
-pub fn wordClearScreen(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordClearScreen(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     forth.putc(0x0c);
     return 0;
 }
 
 /// --
-pub fn wordHello(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordHello(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     try forth.print("Hello world!\n", .{});
     return 0;
 }
 
 /// n --
-pub fn wordDot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordDot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var v: u64 = try forth.stack.pop();
     try forth.print("{} ", .{v});
     return 0;
 }
 
 /// sAddr --
-pub fn wordSDot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordSDot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     const i = try forth.stack.pop();
     const p_string: [*:0]u8 = @ptrFromInt(i);
     try forth.print("{s}", .{p_string});
@@ -121,14 +121,14 @@ pub fn wordSDot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// n --
-pub fn wordHexDot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordHexDot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var v: u64 = try forth.stack.pop();
     try forth.print("{x} ", .{v});
     return 0;
 }
 
 /// --
-pub fn wordStack(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordStack(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     for (forth.stack.items()) |item| {
         try forth.print("{}\n", .{item});
     }
@@ -136,7 +136,7 @@ pub fn wordStack(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// --
-pub fn wordRStack(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordRStack(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     for (forth.rstack.items()) |item| {
         try forth.print("{}\n", .{item});
     }
@@ -144,7 +144,7 @@ pub fn wordRStack(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 
 }
 
 /// w1 w2 -- w2 w1
-pub fn wordSwap(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordSwap(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
@@ -154,7 +154,7 @@ pub fn wordSwap(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 w3 w4 -- w3 w4 w1 w2
-pub fn word2Swap(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn word2Swap(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     var w4 = try s.pop();
     var w3 = try s.pop();
@@ -168,7 +168,7 @@ pub fn word2Swap(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w -- w w
-pub fn wordDup(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordDup(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const a = try s.pop();
     try s.push(a);
@@ -177,7 +177,7 @@ pub fn wordDup(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 -- w1 w2 w1 w2
-pub fn word2Dup(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn word2Dup(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const w2 = try s.pop();
     const w1 = try s.pop();
@@ -189,14 +189,14 @@ pub fn word2Dup(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 --
-pub fn wordDrop(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordDrop(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     _ = try s.pop();
     return 0;
 }
 
 /// w1 w2 --
-pub fn word2Drop(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn word2Drop(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     _ = try s.pop();
     _ = try s.pop();
@@ -204,7 +204,7 @@ pub fn word2Drop(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 w3 -- w2 w3 w1
-pub fn wordRot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordRot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const w3 = try s.pop();
     const w2 = try s.pop();
@@ -216,7 +216,7 @@ pub fn wordRot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 w3 w4 w5 w6 -- w3 w4 w5 w6 w1 w2
-pub fn word2Rot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn word2Rot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const w6 = try s.pop();
     const w5 = try s.pop();
@@ -234,7 +234,7 @@ pub fn word2Rot(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 -- w1 w2 w1
-pub fn wordOver(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordOver(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
@@ -245,7 +245,7 @@ pub fn wordOver(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// w1 w2 w3 w4 -- w1 w2 w3 w4 w1 w2
-pub fn word2Over(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn word2Over(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const w4 = try s.pop();
     const w3 = try s.pop();
@@ -261,20 +261,20 @@ pub fn word2Over(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 }
 
 /// n n -- n
-pub fn wordAdd(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordAdd(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
-    try s.push(a+b);
+    try s.push(a + b);
     return 0;
 }
 
 /// n n -- n
-pub fn wordSub(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordSub(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     var s = &forth.stack;
     const a = try s.pop();
     const b = try s.pop();
-    try s.push(b-a);
+    try s.push(b - a);
     return 0;
 }
 
@@ -312,7 +312,7 @@ pub fn wordSub(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
 //}
 
 /// addr -- u64
-pub fn wordLoadU64(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordLoadU64(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     const a = try forth.stack.pop();
 
     const p: *u64 = @ptrFromInt(a);
@@ -322,7 +322,7 @@ pub fn wordLoadU64(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64
 }
 
 /// u64 addr --
-pub fn wordStoreU64(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
+pub fn wordStoreU64(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     const a = try forth.stack.pop();
     const v = try forth.stack.pop();
 
