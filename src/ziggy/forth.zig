@@ -93,7 +93,7 @@ pub const Forth = struct {
     }
 
     // Define a variable with a single u64 value. What we really end up with
-    // is a seconndary word that pushes the value onto the stack.
+    // is a secondary word that pushes the value onto the stack.
     pub fn defineVariable(this: *Forth, name: []const u8, v: u64) !void {
         _ = try this.startWord(name, &core.inner, false);
         this.addOpCode(OpCode.push_u64);
@@ -108,7 +108,7 @@ pub const Forth = struct {
         if (this.compiling) {
             return ForthError.AlreadyCompiling;
         }
-        try this.print("Start word: name: {s}\n", .{name});
+        try this.print("New word: {s}\n", .{name});
         const entry: Header = Header.init(name, f, immediate, this.lastWord);
         this.newWord = this.addScalar(Header, entry);
         this.compiling = true;
@@ -120,7 +120,6 @@ pub const Forth = struct {
         if (!this.compiling) {
             return ForthError.NotCompiling;
         }
-        try this.print("Complete word: name: {s}\n", .{this.newWord.?.name});
         this.lastWord = this.newWord;
         this.newWord = null;
         this.compiling = false;
@@ -188,13 +187,11 @@ pub const Forth = struct {
 
     // Copy an opcode into memory.
     pub inline fn addOpCode(this: *Forth, oc: OpCode) void {
-        try this.print("Adding op code {any}\n", .{oc});
         this.addNumber(@intFromEnum(oc));
     }
 
     // Copy a call to a word into memory.
     pub inline fn addCall(this: *Forth, header: *Header) void {
-        try this.print("Adding call\n", .{});
         this.addNumber(@intFromPtr(header));
     }
 

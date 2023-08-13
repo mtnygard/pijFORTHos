@@ -58,14 +58,29 @@ pub fn wordColon(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     return 0;
 }
 
-// Commplete a secondary word.
+// Complete a secondary word.
 pub fn wordSemi(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     forth.addOpCode(OpCode.stop);
     try forth.completeWord();
     return 0;
 }
 
-// a -- ()
+/// sAddr flag -- ()
+pub fn wordImmediate(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    const i = try forth.stack.pop();
+    const name: [*:0]u8 = @ptrFromInt(i);
+    const l = string.strlen(name);
+
+    var header = forth.findWord(name[0..l]);
+    if (header) |h| {
+        h.immediate = (i != 0);
+    } else {
+        try forth.print("{s}??\n", .{name});
+    }
+    return 0;
+}
+
+/// a -- ()
 pub fn wordEmit(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     const a = try forth.stack.pop();
     var ch: u8 = @intCast(a);
@@ -262,54 +277,54 @@ pub fn word2Over(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
 
 /// n n -- n
 pub fn wordAdd(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
-    var s = &forth.stack;
-    const a = try s.pop();
-    const b = try s.pop();
-    try s.push(a + b);
+    const a = try forth.stack.pop();
+    const b = try forth.stack.pop();
+    try forth.stack.push(a + b);
     return 0;
 }
 
 /// n n -- n
 pub fn wordSub(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
-    var s = &forth.stack;
-    const a = try s.pop();
-    const b = try s.pop();
-    try s.push(b - a);
+    const a = try forth.stack.pop();
+    const b = try forth.stack.pop();
+    try forth.stack.push(b - a);
+    return 0;
+}
+
+/// n n -- n
+pub fn wordMul(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    const a = try forth.stack.pop();
+    const b = try forth.stack.pop();
+    try forth.stack.push(a * b);
+    return 0;
+}
+
+/// n n -- n
+pub fn wordDiv(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    const a = try forth.stack.pop();
+    const b = try forth.stack.pop();
+    try forth.stack.push(b / a);
+    return 0;
+}
+
+/// n n -- n
+pub fn wordMod(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    const a = try forth.stack.pop();
+    const b = try forth.stack.pop();
+    try forth.stack.push(b % a);
     return 0;
 }
 
 /// --
-//pub fn wordReturn(forth: *Forth, _: [*] u64, _: u64, _: *Header) ForthError!u64 {
-//    return 0;
-//}
-
-/// --
-//pub fn wordDictionary(forth: *Forth) ForthError!void {
-//    try forth.dictionary.pr(forth);
-//}
-
-/// s -- w
-//pub fn wordLookup(forth: *Forth) ForthError!void {
-//    const name_value = try forth.stack.pop();
-//    try forth.print("looking up {s}\n", .{name_value.s});
-//    const v = try forth.dictionary.get(name_value.s);
-//    try forth.stack.push(v);
-//}
-//
-///// --
-//pub fn wordInfo(forth: *Forth) ForthError!void {
-//    try forth.print("nexti: {}\n", .{forth.nexti});
-//    try forth.print("composing: {}\n", .{forth.composing});
-//    try forth.print("new word: {s}\n", .{forth.new_word_name});
-//    try forth.print("new word def: {}\n", .{forth.new_word_def});
-//}
-//
-///// --
-//pub fn wordNext(forth: *Forth) ForthError!void {
-//    var nexti_address: usize = @intFromPtr(&forth.nexti);
-//    var v = u64.mkAddress(nexti_address);
-//    try forth.stack.push(v);
-//}
+pub fn wordDictionary(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    var e = forth.lastWord;
+    while (e) |entry| {
+        const immed = if (entry.immediate) "*" else " ";
+        try forth.print("{s} {s}\n", .{ immed, entry.name });
+        e = entry.previous;
+    }
+    return 0;
+}
 
 /// addr -- u64
 pub fn wordLoadU64(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
@@ -343,14 +358,13 @@ pub fn defineCore(forth: *Forth) !void {
     // Secondary definition words.
     _ = try forth.definePrimitive(":", &wordColon, false);
     _ = try forth.definePrimitive(";", &wordSemi, true);
+    _ = try forth.definePrimitive("immediate", &wordImmediate, false);
 
     // Debug and inspection words.
     _ = try forth.definePrimitive("stack", &wordStack, false);
     _ = try forth.definePrimitive("?", &wordStack, false);
-    //_ = try forth.definePrimitive("??", &wordDictionary, false);
+    _ = try forth.definePrimitive("??", &wordDictionary, false);
     _ = try forth.definePrimitive("rstack", &wordRStack, false);
-    //_ = try forth.definePrimitive("info", &wordInfo, true);
-    //_ = try forth.definePrimitive("ip", &wordNext, false);
 
     // Basic Forth words.
     _ = try forth.definePrimitive("swap", &wordSwap, false);
@@ -369,6 +383,9 @@ pub fn defineCore(forth: *Forth) !void {
     _ = try forth.definePrimitive("h.", &wordHexDot, false);
     _ = try forth.definePrimitive("+", &wordAdd, false);
     _ = try forth.definePrimitive("-", &wordSub, false);
+    _ = try forth.definePrimitive("*", &wordMul, false);
+    _ = try forth.definePrimitive("/", &wordDiv, false);
+    _ = try forth.definePrimitive("%", &wordMod, false);
     _ = try forth.definePrimitive("!i", &wordStoreU64, false);
     _ = try forth.definePrimitive("@i", &wordLoadU64, false);
 }
