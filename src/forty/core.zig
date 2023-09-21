@@ -22,6 +22,14 @@ const os_main = @import("../main.zig");
 
 const BoardInfo = hal.common.BoardInfo;
 
+/// <values> bufAddr sAddr -- ()
+pub fn wordFormat(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+    const fmt = try forth.popAs([*:0]u8);
+    const buffer = try forth.popAs([*:0]u8);
+    try string.simpleFormat(buffer, fmt, &forth.stack);
+    return 0;
+}
+
 /// a -- ()
 pub fn wordEmit(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
     const a = try forth.stack.pop();
@@ -103,6 +111,21 @@ pub fn wordSignedDot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i6
 pub fn wordSDecimalDot(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
     var v: i64 = @bitCast(try forth.stack.pop());
     try std.fmt.formatInt(v, 10, .lower, .{}, forth.writer());
+    return 0;
+}
+
+pub fn wordClearStatus(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+    forth.console.clearStatus();
+    return 0;
+}
+
+/// saddr --
+pub fn wordStatus(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+    const i = try forth.stack.pop();
+    const p_string: [*:0]u8 = @ptrFromInt(i);
+    const l = string.strlen(p_string);
+    const slice = p_string[0..l];
+    forth.console.emitStatus(slice);
     return 0;
 }
 
@@ -444,8 +467,9 @@ pub fn defineCore(forth: *Forth) !void {
     try forth.defineInternalVariable("cursory", &forth.console.ypos);
 
     // IO
-    _ = try forth.definePrimitiveDesc("hello", " -- :Hello world!", &wordHello, 0);
     _ = try forth.definePrimitiveDesc("cr", " -- :Emit a newline", &wordCr, 0);
+    _ = try forth.definePrimitiveDesc("format", " <args> buf fmt -- : sprintf style formatting", &wordFormat, 0);
+    _ = try forth.definePrimitiveDesc("hello", " -- :Hello world!", &wordHello, 0);
     _ = try forth.definePrimitiveDesc("emit", "ch -- :Emit a char", &wordEmit, 0);
     _ = try forth.definePrimitiveDesc("cls", " -- :Clear the screen", &wordClearScreen, 0);
     _ = try forth.definePrimitiveDesc("key", " -- ch :Read a key", &wordKey, 0);
@@ -472,6 +496,8 @@ pub fn defineCore(forth: *Forth) !void {
     _ = try forth.definePrimitiveDesc("#.", "n -- :print tos as u64 in decimal", &wordDecimalDot, 0);
     _ = try forth.definePrimitiveDesc("h.", "n -- :print tos as u64 in decimal", &wordHexDot, 0);
     _ = try forth.definePrimitiveDesc("s.", "s -- :print tos as a string", &wordSDot, 0);
+    _ = try forth.definePrimitiveDesc(".status", "s -- :update the status line", &wordStatus, 0);
+    _ = try forth.definePrimitiveDesc("clear-status", " -- :clear the status line", &wordClearStatus, 0);
     _ = try forth.definePrimitiveDesc("s=", "s s -- b :string contents equality", &wordSEqual, 0);
     _ = try forth.definePrimitiveDesc("+", "n n -- n :u64 addition", &wordAdd, 0);
     _ = try forth.definePrimitiveDesc("-", "n n -- n :u64 subtraction", &wordSub, 0);

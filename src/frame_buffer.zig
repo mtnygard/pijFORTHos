@@ -49,6 +49,8 @@ pub const FrameBuffer = struct {
     // These are palette indices
     pub const COLOR_FOREGROUND: u8 = 0x02;
     pub const COLOR_BACKGROUND: u8 = 0x00;
+    pub const COLOR_HIGHLIGHT: u8 = 0x04;
+    pub const COLOR_LT_GREY: u8 = 0x06;
 
     pub fn clear(self: *FrameBuffer) void {
         for (0..self.buffer_size) |i| {
@@ -56,21 +58,30 @@ pub const FrameBuffer = struct {
         }
     }
 
-    pub fn clearRegion(self: *FrameBuffer, x: usize, y: usize, w: usize, h: usize) void {
+    pub fn fillRegion(self: *FrameBuffer, x: usize, y: usize, w: usize, h: usize, color: u8) void {
         var line_stride = self.pitch;
         var fbidx = x + (y * line_stride);
         var line_step = line_stride - w;
         for (0..h) |_| {
             for (0..w) |_| {
-                self.base[fbidx] = COLOR_BACKGROUND;
+                self.base[fbidx] = color;
                 fbidx += 1;
             }
             fbidx += line_step;
         }
     }
 
-    // Font is fixed height of 16 bits, fixed width of 8 bits
+    pub fn clearRegion(self: *FrameBuffer, x: usize, y: usize, w: usize, h: usize) void {
+        self.fillRegion(x, y, w, h, COLOR_BACKGROUND);
+    }
+
+    // Font is fixed height of 16 bits, fixed width of 8 bits.
     pub fn drawChar(self: *FrameBuffer, x: usize, y: usize, ch: u8) void {
+        self.drawColorChar(x, y, COLOR_FOREGROUND, COLOR_BACKGROUND, ch);
+    }
+
+    // Font is fixed height of 16 bits, fixed width of 8 bits. Colors are pallette indices.
+    pub fn drawColorChar(self: *FrameBuffer, x: usize, y: usize, fg: u8, bg: u8, ch: u8) void {
         var romidx: usize = @as(usize, ch - 32) * 16;
         if (romidx + 16 >= character_rom.len)
             return;
@@ -81,7 +92,7 @@ pub const FrameBuffer = struct {
         for (0..16) |_| {
             var charbits: u8 = character_rom[romidx];
             for (0..8) |_| {
-                self.base[fbidx] = if ((charbits & 0x80) != 0) COLOR_FOREGROUND else COLOR_BACKGROUND;
+                self.base[fbidx] = if ((charbits & 0x80) != 0) fg else bg;
                 fbidx += 1;
                 charbits <<= 1;
             }

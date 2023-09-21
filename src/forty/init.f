@@ -129,3 +129,13 @@ finish
 ;
 
 test-all
+
+create status-buf 200 allot finish
+
+" Status brought to you by after-cmd word. Ticks: %d" "status-fmt" set
+
+
+: after-cmd 
+  ticks status-buf status-fmt format
+  status-buf .status 
+;

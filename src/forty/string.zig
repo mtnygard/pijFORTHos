@@ -1,5 +1,9 @@
 const std = @import("std");
+const DataStack = @import("forth.zig").DataStack;
 const ForthError = @import("errors.zig").ForthError;
+
+const stack = @import("stack.zig");
+const string = @import("string.zig");
 
 const Allocator = std.mem.Allocator;
 
@@ -108,6 +112,101 @@ pub fn u64ToChars(i: u64) [8]u8 {
         j = j >> 8;
     }
     return result;
+}
+
+const digitChars = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+pub fn formatInteger(comptime T: type, value: T, base: u64, buf: [*]u8) usize {
+    var v: T = value;
+    var b: T = @intCast(base);
+
+    var offset: usize = 0;
+
+    if (value < 0) {
+        v = -1 * v;
+    }
+
+    if (v == 0) {
+        buf[offset] = '0';
+        offset += 1;
+    } else {
+        while (v != 0) {
+            //const uValue: u64 = @intCast(v);
+            buf[offset] = digitChars[@intCast(@rem(v, b))];
+            offset += 1;
+            v = @divTrunc(v, b);
+        }
+
+        if (value < 0) {
+            buf[offset] = '-';
+            offset += 1;
+        }
+        std.mem.reverse(u8, buf[0..offset]);
+    }
+    return offset;
+}
+
+// There has got to be a better way!
+pub fn simpleFormat(buf: [*:0]u8, fmt: [*:0]const u8, data: *DataStack) !void {
+    var iBuf: usize = 0;
+    var iFmt: usize = 0;
+    var len = string.strlen(fmt);
+
+    while (iFmt < len) {
+        const ch = fmt[iFmt];
+        switch (ch) {
+            0 => break,
+            '%' => {
+                var value = try data.pop();
+                iFmt += 1;
+                const fmtCh = fmt[iFmt];
+                switch (fmtCh) {
+                    'c' => {
+                        buf[iBuf] = @truncate(value);
+                        iBuf += 1;
+                    },
+                    'C' => {
+                        for (0..8) |_| {
+                            buf[iBuf] = @truncate(value);
+                            value = value >> 8;
+                            iBuf += 1;
+                        }
+                    },
+                    'd' => {
+                        const iValue: i64 = @bitCast(value);
+                        iBuf += formatInteger(i64, iValue, 10, buf + iBuf);
+                    },
+                    'x' => {
+                        buf[iBuf] = '0';
+                        buf[iBuf + 1] = 'x';
+                        iBuf += 2;
+                        const iValue: i64 = @bitCast(value);
+                        iBuf += formatInteger(i64, iValue, 16, buf + iBuf);
+                    },
+                    's' => {
+                        const s: [*:0]u8 = @ptrFromInt(value);
+                        const l = string.strlen(s);
+                        for (0..l) |i| {
+                            buf[iBuf] = s[i];
+                            iBuf += 1;
+                        }
+                    },
+
+                    else => return ForthError.FormatError,
+                }
+            },
+            '\\' => {
+                iFmt += 1;
+                buf[iBuf] = fmt[iFmt];
+            },
+            else => {
+                buf[iBuf] = ch;
+                iBuf += 1;
+            },
+        }
+        iFmt += 1;
+    }
+    buf[iBuf] = 0;
 }
 
 test "duplicating a slice" {

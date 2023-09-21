@@ -25,9 +25,9 @@ const intAlignBy = memory_module.intAlignBy;
 pub const init_f = @embedFile("init.f");
 var initBuffer = buffer.BufferSource{};
 
-const InputStack = stack.Stack(*Readline);
-const DataStack = stack.Stack(u64);
-const ReturnStack = stack.Stack(u64);
+pub const InputStack = stack.Stack(*Readline);
+pub const DataStack = stack.Stack(u64);
+pub const ReturnStack = stack.Stack(u64);
 
 pub const WordFunction = *const fn (forth: *Forth, body: [*]u64, offset: u64, header: *Header) ForthError!i64;
 
@@ -102,8 +102,13 @@ pub const Forth = struct {
 
     pub inline fn popAs(this: *Forth, comptime T: type) !T {
         const v = try this.stack.pop();
-        const casted_v: T = @bitCast(v);
-        return casted_v;
+        if (@typeInfo(T) == .Pointer) {
+            const result: T = @ptrFromInt(v);
+            return result;
+        } else {
+            const result: T = @bitCast(v);
+            return result;
+        }
     }
 
     // TBD handle pointers...
@@ -128,7 +133,9 @@ pub const Forth = struct {
     }
 
     // Eng an interactive transation.
-    pub fn end(_: *Forth) void {}
+    pub fn end(this: *Forth) !void {
+        try this.evalToken("after-cmd");
+    }
 
     // Read and return the next word in the input.
     pub fn readWord(this: *Forth) ForthError![]const u8 {
@@ -502,7 +509,7 @@ pub const Forth = struct {
                     else => return err,
                 }
             }
-            this.end();
+            try this.end();
         }
     }
 };

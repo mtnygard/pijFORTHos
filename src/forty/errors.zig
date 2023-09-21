@@ -6,6 +6,7 @@ pub const ForthError = error{
     BadOperation,
     WordReadError,
     ParseError,
+    FormatError,
     OutOfMemory,
     AlreadyCompiling,
     NotCompiling,

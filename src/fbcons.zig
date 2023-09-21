@@ -21,6 +21,9 @@ pub const FrameBufferConsole = struct {
     ypos: u64 = 0,
     width: u64 = undefined,
     height: u64 = undefined,
+    fg_color: u8 = undefined,
+    bg_color: u8 = undefined,
+    full_height: u64 = undefined,
     fb: *FrameBuffer = undefined,
     serial: *Serial = undefined,
 
@@ -29,7 +32,10 @@ pub const FrameBufferConsole = struct {
         self.xpos = 0;
         self.ypos = 0;
         self.width = @truncate(self.fb.xres / 8);
-        self.height = @truncate(self.fb.yres / 16);
+        self.full_height = @truncate(self.fb.yres / 16);
+        self.height = self.full_height - 1;
+        self.fg_color = FrameBuffer.COLOR_FOREGROUND;
+        self.bg_color = FrameBuffer.COLOR_BACKGROUND;
     }
 
     pub fn clear(self: *FrameBufferConsole) void {
@@ -111,7 +117,7 @@ pub const FrameBufferConsole = struct {
             '\t' => self.nextTab(),
             '\n' => self.nextLine(),
             else => if (isPrintable(ch)) {
-                self.fb.drawChar(self.xpos * 8, self.ypos * 16, ch);
+                self.fb.drawColorChar(self.xpos * 8, self.ypos * 16, self.fg_color, self.bg_color, ch);
                 self.next();
             },
         }
@@ -124,6 +130,37 @@ pub const FrameBufferConsole = struct {
         for (str) |ch| {
             self.emit(ch);
         }
+    }
+
+    pub fn fillStatus(self: *FrameBufferConsole, color: u8) void {
+        self.fb.fillRegion(0, self.fb.yres - 16, self.fb.xres, 16, color);
+    }
+
+    pub fn clearStatus(self: *FrameBufferConsole) void {
+        self.fillStatus(FrameBuffer.COLOR_LT_GREY);
+    }
+
+    pub fn emitStatus(self: *FrameBufferConsole, str: []const u8) void {
+        const save_xpos = self.xpos;
+        const save_ypos = self.ypos;
+        const save_fg_color = self.fg_color;
+        const save_bg_color = self.bg_color;
+        self.eraseCursor();
+
+        defer {
+            self.xpos = save_xpos;
+            self.ypos = save_ypos;
+            self.fg_color = save_fg_color;
+            self.bg_color = save_bg_color;
+            self.drawCursor();
+        }
+
+        self.fillStatus(FrameBuffer.COLOR_LT_GREY);
+        self.xpos = 0;
+        self.ypos = self.full_height - 1;
+        self.bg_color = FrameBuffer.COLOR_LT_GREY;
+        self.fg_color = FrameBuffer.COLOR_HIGHLIGHT;
+        self.emitString(str);
     }
 
     pub const Writer = std.io.Writer(*FrameBufferConsole, error{}, write);

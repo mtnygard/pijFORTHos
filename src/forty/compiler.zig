@@ -48,12 +48,36 @@ inline fn wordOffset(a: anytype, b: anytype) i64 {
 }
 
 pub fn pushBodyValue(forth: *Forth, _: [*]u64, _: u64, header: *Header) ForthError!i64 {
-    var body = header.bodyOfType([*]u8);
+    var body = header.bodyOfType([*]u64);
     try forth.stack.push(body[0]);
     return 0;
 }
 
-pub fn wordLet(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+///  --
+pub fn wordNoOp(_: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+    return 0;
+}
+
+/// sAddr -- pWord
+pub fn wordLookup(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
+    const iName = try forth.stack.pop();
+    const name: [*:0]u8 = @ptrFromInt(iName);
+    const len = string.strlen(name);
+
+    const wAddr = forth.findWord(name[0..len]);
+    try forth.stack.push(@intFromPtr(wAddr));
+
+    return 0;
+}
+
+/// wAddr -- <results>
+pub fn wordGo(forth: *Forth, body: [*]u64, offset: u64, _: *Header) ForthError!i64 {
+    const iAddr = try forth.stack.pop();
+    const header: *Header = @ptrFromInt(iAddr);
+    return header.func(forth, body, offset, header);
+}
+
+pub fn wordSet(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!i64 {
     const iName = try forth.stack.pop();
     const value = try forth.stack.pop();
 
@@ -301,7 +325,12 @@ pub fn defineCompiler(forth: *Forth) !void {
     _ = try forth.definePrimitiveDesc("}", " -- : Turn compile mode back on", &wordRBrace, 1);
     _ = try forth.definePrimitiveDesc("create", " -- :Start a new definition", &wordCreate, 0);
     _ = try forth.definePrimitiveDesc("finish", " -- :Complete a new definition", &wordFinish, 0);
-    _ = try forth.definePrimitiveDesc("let", " n sAddr - :Assign a new variable", &wordLet, 0);
+    _ = try forth.definePrimitiveDesc("set", " n sAddr - :Assign a new variable", &wordSet, 0);
+    _ = try forth.definePrimitiveDesc("noop", " - : Do nothing, with style", &wordNoOp, 0);
+    _ = try forth.definePrimitiveDesc("after-cmd", " - : Do nothing after each cmd", &wordNoOp, 0);
+    _ = try forth.definePrimitiveDesc("lookup", "sAddr - pWord: Look up a work", &wordLookup, 0);
+
+    _ = try forth.definePrimitiveDesc("go", "wAddr - <results>: Execute the word", &wordGo, 0);
     _ = try forth.definePrimitiveDesc(",", " n -- :Allocate a word and store n in it.", &wordComma, 0);
     _ = try forth.definePrimitiveDesc("s,", " n -- :Add a string to memory.", &wordSComma, 0);
     _ = try forth.definePrimitiveDesc("allot", " n -- :Allocate n words.", &wordAllot, 0);
