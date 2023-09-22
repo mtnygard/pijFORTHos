@@ -14,8 +14,30 @@ const Allocator = std.mem.Allocator;
 
 const Readline = @import("readline.zig");
 
+const character_rom = @embedFile("data/character_rom.bin");
+
+pub const default_palette = [_]u32{
+    0x00000000,
+    0xFFBB5500,
+    0xFFFFFFFF,
+    0xFFFF0000,
+    0xFF00FF00,
+    0xFF0000FF,
+    0x55555555,
+    0xCCCCCCCC,
+};
+
 /// display console
 pub const FrameBufferConsole = struct {
+    // These are palette indices
+    pub const COLOR_FOREGROUND: u8 = 0x02;
+    pub const COLOR_BACKGROUND: u8 = 0x00;
+    pub const COLOR_HIGHLIGHT: u8 = 0x04;
+    pub const COLOR_LT_GREY: u8 = 0x06;
+
+    pub const FONT_WIDTH: u8 = 8;
+    pub const FONT_HEIGHT: u8 = 16;
+
     tab_width: u8 = 8,
     xpos: u64 = 0,
     ypos: u64 = 0,
@@ -31,15 +53,15 @@ pub const FrameBufferConsole = struct {
         self.serial = serial;
         self.xpos = 0;
         self.ypos = 0;
-        self.width = @truncate(self.fb.xres / 8);
-        self.full_height = @truncate(self.fb.yres / 16);
+        self.width = @truncate(self.fb.xres / FONT_WIDTH);
+        self.full_height = @truncate(self.fb.yres / FONT_HEIGHT);
         self.height = self.full_height - 1;
-        self.fg_color = FrameBuffer.COLOR_FOREGROUND;
-        self.bg_color = FrameBuffer.COLOR_BACKGROUND;
+        self.fg_color = COLOR_FOREGROUND;
+        self.bg_color = COLOR_BACKGROUND;
     }
 
     pub fn clear(self: *FrameBufferConsole) void {
-        self.fb.clear();
+        self.fillRegion(0, 0, self.width, self.height, self.bg_color);
         self.xpos = 0;
         self.ypos = 0;
     }
@@ -65,42 +87,31 @@ pub const FrameBufferConsole = struct {
         if (self.ypos >= self.height) {
             self.nextScreen();
         }
-        self.fb.clearRegion(0, self.ypos * 16, self.fb.xres, 16);
+        self.fillRegion(0, self.ypos, self.width, 1, self.bg_color);
     }
 
     fn nextScreen(self: *FrameBufferConsole) void {
         // self.fb.blit(0, 16, self.fb.xres, self.fb.yres - 16, 0, 0);
         // self.fb.clearRegion(0, self.fb.yres - 16, self.fb.xres, 16);
+        // self.ypos = self.height - 1;
 
         self.xpos = 0;
         self.ypos = 0;
-        // self.ypos = self.height - 1;
-    }
-
-    fn underbar(self: *FrameBufferConsole, color: u8) void {
-        var x: u64 = self.xpos;
-        x *= 8;
-        var y: u64 = self.ypos + 1;
-        y *= 16;
-
-        for (0..8) |i| {
-            self.fb.drawPixel(x + i, y, color);
-        }
     }
 
     fn eraseCursor(self: *FrameBufferConsole) void {
-        self.underbar(FrameBuffer.COLOR_BACKGROUND);
+        self.underbar(self.bg_color);
     }
 
     fn drawCursor(self: *FrameBufferConsole) void {
-        self.underbar(FrameBuffer.COLOR_FOREGROUND);
+        self.underbar(self.fg_color);
     }
 
     fn backspace(self: *FrameBufferConsole) void {
         if (self.xpos > 0) {
             self.xpos -= 1;
         }
-        self.fb.eraseChar(self.xpos * 8, self.ypos * 16);
+        self.fillRegion(self.xpos, self.ypos, 1, 1, self.bg_color);
     }
 
     fn isPrintable(ch: u8) bool {
@@ -117,7 +128,7 @@ pub const FrameBufferConsole = struct {
             '\t' => self.nextTab(),
             '\n' => self.nextLine(),
             else => if (isPrintable(ch)) {
-                self.fb.drawColorChar(self.xpos * 8, self.ypos * 16, self.fg_color, self.bg_color, ch);
+                self.drawChar(self.xpos, self.ypos, self.fg_color, self.bg_color, ch);
                 self.next();
             },
         }
@@ -132,12 +143,43 @@ pub const FrameBufferConsole = struct {
         }
     }
 
+    // Font is fixed height of 16 bits, fixed width of 8 bits. Colors are palette indices.
+    pub fn drawChar(self: *FrameBufferConsole, x: usize, y: usize, fg: u8, bg: u8, ch: u8) void {
+        var romidx: usize = @as(usize, ch - 32) * 16;
+        if (romidx + 16 >= character_rom.len)
+            return;
+
+        var base = self.fb.base;
+        var line_stride = self.fb.pitch;
+        var fbidx = (x * FONT_WIDTH) + (y * FONT_HEIGHT * line_stride);
+
+        for (0..16) |_| {
+            var charbits: u8 = character_rom[romidx];
+            for (0..8) |_| {
+                base[fbidx] = if ((charbits & 0x80) != 0) fg else bg;
+                fbidx += 1;
+                charbits <<= 1;
+            }
+            fbidx -= 8;
+            fbidx += line_stride;
+            romidx += 1;
+        }
+    }
+
+    fn underbar(self: *FrameBufferConsole, color: u8) void {
+        self.fb.fillRegion(self.xpos * FONT_WIDTH, (self.ypos + 1) * FONT_HEIGHT, FONT_WIDTH, 1, color);
+    }
+
+    fn fillRegion(self: *FrameBufferConsole, start_col: usize, start_row: usize, cols: usize, rows: usize, color: u8) void {
+        self.fb.fillRegion(start_col * FONT_WIDTH, start_row * FONT_HEIGHT, cols * FONT_WIDTH, rows * FONT_HEIGHT, color);
+    }
+
     pub fn fillStatus(self: *FrameBufferConsole, color: u8) void {
-        self.fb.fillRegion(0, self.fb.yres - 16, self.fb.xres, 16, color);
+        self.fillRegion(0, self.full_height - 1, self.width, 1, color);
     }
 
     pub fn clearStatus(self: *FrameBufferConsole) void {
-        self.fillStatus(FrameBuffer.COLOR_LT_GREY);
+        self.fillStatus(COLOR_LT_GREY);
     }
 
     pub fn emitStatus(self: *FrameBufferConsole, str: []const u8) void {
@@ -155,11 +197,11 @@ pub const FrameBufferConsole = struct {
             self.drawCursor();
         }
 
-        self.fillStatus(FrameBuffer.COLOR_LT_GREY);
+        self.clearStatus();
         self.xpos = 0;
         self.ypos = self.full_height - 1;
-        self.bg_color = FrameBuffer.COLOR_LT_GREY;
-        self.fg_color = FrameBuffer.COLOR_HIGHLIGHT;
+        self.bg_color = COLOR_LT_GREY;
+        self.fg_color = COLOR_HIGHLIGHT;
         self.emitString(str);
     }
 
