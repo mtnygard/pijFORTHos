@@ -130,12 +130,74 @@ finish
 
 test-all
 
+: scr-@fg (Get the foreground color)
+  fbcons fbcons.fg_color + @b
+;
+
+: scr-!fg (Set the current foreground color)
+  fbcons fbcons.fg_color + !b
+;
+
+: scr-@bg (Get the background color)
+  fbcons fbcons.bg_color + @b
+;
+
+: scr-!bg (Set the current background color)
+  fbcons fbcons.bg_color + !b
+;
+
+: scr-@width (Get the screen width)
+  fbcons fbcons.width + @
+;
+
+: scr-@height (Get the screen height)
+  fbcons fbcons.height + @
+;
+
+: scr-@col (Get the current screen x position)
+  fbcons fbcons.xpos + @
+;
+
+: scr-!col (Set the current screen x position)
+  fbcons fbcons.xpos + !
+;
+
+: scr-@row (Get the current screen y position)
+  fbcons fbcons.ypos + @
+;
+
+: scr-!row (Set the current screen y position)
+  fbcons fbcons.ypos + !
+;
+
+(Status line at bottom of screen)
+
 create status-buf 200 allot finish
 
 " Status brought to you by after-cmd word. Ticks: %d" "status-fmt" set
 
 
-: after-cmd 
+: proto-after-cmd 
   ticks status-buf status-fmt format
   status-buf .status 
 ;
+
+: inc 1 + ;
+: 2inc inc swap inc swap ;
+
+: strlen
+  0 swap
+  while
+    dup @b
+  do
+    swap inc swap
+    inc
+  done
+  drop
+;
+
+
+
+
+
+

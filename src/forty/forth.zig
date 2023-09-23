@@ -64,7 +64,7 @@ pub const Forth = struct {
         this.console = c;
         this.stack = DataStack.init(&a);
         this.rstack = ReturnStack.init(&a);
-        this.buffer = try a.alloc(u8, 20000); // TBD make size a parameter.
+        this.buffer = try a.alloc(u8, 50000); // TBD make size a parameter.
         this.memory = Memory.init(this.buffer.ptr, this.buffer.len);
         this.line_buffer = try a.create(string.LineBuffer);
 
@@ -134,7 +134,9 @@ pub const Forth = struct {
 
     // Eng an interactive transation.
     pub fn end(this: *Forth) !void {
-        try this.evalToken("after-cmd");
+        if (this.compiling == 0) {
+            try this.evalToken("after-cmd");
+        }
     }
 
     // Read and return the next word in the input.
@@ -351,10 +353,12 @@ pub const Forth = struct {
             try this.evalHeader(h);
         } else if (token[0] == '\'') {
             try this.evalQuoted(token);
-        } else if (token[0] == '"') {
+        } else if (token[0] == '"' or token[0] == ':') {
             try this.evalString(token);
         } else if (token[0] != '(') {
-            var v: u64 = try parser.parseNumber(token, this.ibase);
+            var v: u64 = parser.parseNumber(token, this.ibase) catch {
+                return ForthError.NotFound;
+            };
             try this.evalNumber(v);
         }
     }
