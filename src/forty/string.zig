@@ -210,7 +210,8 @@ pub fn simpleFormat(buf: [*:0]u8, fmt: [*:0]const u8, data: *DataStack) !void {
 }
 
 test "duplicating a slice" {
-    //const print = std.debug.print;
+    std.debug.print("\n", .{});
+
     const assert = std.debug.assert;
     const allocator = std.testing.allocator;
 
@@ -218,5 +219,5 @@ test "duplicating a slice" {
     const p = try dupCString(allocator, s);
     assert(p[0] == 'a');
 
-    allocator.free(p);
+    //    allocator.free(p);
 }
