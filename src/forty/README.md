@@ -8,13 +8,17 @@ You will be greeted by a `OK>>` prompt and you can start typing Forth words:
     21
     OK>>
 
-## Value syntax
+## Comments
+
+Forty follows the usual Forth comment syntax of `(anything surrounded by parens)`.
+
+## Numbers
 
 Simply entering a number:
 
     OK>> 42
 
-Will push a i32 onto the stack.
+Numbers are i32.
 
 You can express you numbers in hex as well:
 
@@ -24,9 +28,31 @@ A number with a decimal point will give you a an f32:
 
     OK>> 3.14
 
-Strings are surrounded by double quotes.
-Note that strings cannot currently contain whitespace!
+The default base is 10 but you can change it to hexidecimal with `hex`:
 
+    OK>> hex ff
+    OK>> . cr
+    OK>> decimal   (Go back to base 10)
+
+No matter what the current base, you can enter hex numbers with the usual 0xnnn syntax.
+Similarly you can always enter a decimal number with 0#nnn:
+
+    OK>> decimal   (Set the current base to 10)
+    OK>> 0xff      (But push a hex number)
+    OK>> hex       (Base is now 16)
+    OK>> 0#42      (But enter a decimal number anyway)
+
+## Strings
+
+Strings are surrounded by double quotes.
+
+    OK>> "hello"
+
+Not that the contents of string literals are cleared after every interactive command,
+so while interacting with the interpreter your strings will only last until the next
+push of the _Enter_ key:
+
+    OK>> 
     OK>> "hello"
 
 Single `u8` characters use the backslash:
