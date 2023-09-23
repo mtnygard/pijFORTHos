@@ -9,17 +9,19 @@ pub fn parseQuoted(token: []const u8) ![]const u8 {
         const l = token.len;
         return token[1..l];
     }
-    return ForthError.ParseError;
+    return ForthError.ParseQuotedError;
 }
 
 pub fn parseString(token: []const u8) ![]const u8 {
-    var l: usize = 0;
+    var l: usize = token.len;
 
-    if (token[0] != '"') {
-        return ForthError.ParseError;
+    if (token[0] == '"') {
+        return token[1..(l - 1)];
+    } else if (token[0] == ':') {
+        return token[1..l];
     }
-    l = token.len - 1;
-    return token[1..l];
+
+    return ForthError.ParseStringError;
 }
 
 pub fn isComment(token: []const u8) bool {
@@ -28,7 +30,7 @@ pub fn isComment(token: []const u8) bool {
 
 pub fn parseComment(token: []const u8) ![]const u8 {
     if (!isComment(token)) {
-        return ForthError.ParseError;
+        return ForthError.ParseCommentError;
     }
     const l = token.len - 1;
     return token[1..l];
@@ -36,7 +38,7 @@ pub fn parseComment(token: []const u8) ![]const u8 {
 
 pub fn parseNumber(token: []const u8, base: u64) !u64 {
     if (token.len <= 0) {
-        return ForthError.ParseError;
+        return ForthError.ParseNumberError;
     }
 
     if (token[0] == '\\') {
@@ -46,7 +48,7 @@ pub fn parseNumber(token: []const u8, base: u64) !u64 {
     if (token.len >= 3 and token[0] == '0' and token[1] == 'x') {
         var sNumber = token[2..];
         const uValue = std.fmt.parseInt(u64, sNumber, 16) catch {
-            return ForthError.ParseError;
+            return ForthError.ParseNumberError;
         };
         return uValue;
     }
@@ -54,14 +56,14 @@ pub fn parseNumber(token: []const u8, base: u64) !u64 {
     if (token.len >= 3 and token[0] == '0' and token[1] == '#') {
         var sNumber = token[2..];
         const iValue = std.fmt.parseInt(i64, sNumber, 10) catch {
-            return ForthError.ParseError;
+            return ForthError.ParseNumberError;
         };
         return @bitCast(iValue);
     }
 
     var iValue = std.fmt.parseInt(i64, token, @intCast(base)) catch {
         var fValue = std.fmt.parseFloat(f64, token) catch {
-            return ForthError.ParseError;
+            return ForthError.ParseNumberError;
         };
         return @bitCast(fValue);
     };
