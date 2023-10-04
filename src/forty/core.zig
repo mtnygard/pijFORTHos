@@ -79,6 +79,16 @@ pub fn inner(forth: *Forth, _: [*]u64, _: u64, header: *Header) ForthError!u64 {
     return 0;
 }
 
+// n -- : Generate lots of text to the serial interface.
+pub fn wordToSerial(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
+    const n = try forth.stack.pop();
+    for (0..n) |_| {
+        bsp.io.stringSend("abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz");
+        bsp.io.stringSend("\r\n");
+    }
+    return 0;
+}
+
 // Begin the definition of a new secondary word.
 pub fn wordColon(forth: *Forth, _: [*]u64, _: u64, _: *Header) ForthError!u64 {
     try forth.assertNotCompiling();
@@ -645,6 +655,7 @@ pub fn defineCore(forth: *Forth) !void {
 
     // IO
     _ = try forth.definePrimitiveDesc("hello", " -- :Hello world!", &wordHello, false);
+    _ = try forth.definePrimitiveDesc("->serial", " n -- ", &wordToSerial, false);
     _ = try forth.definePrimitiveDesc("cr", " -- :Emit a newline", &wordCr, false);
     _ = try forth.definePrimitiveDesc("emit", "ch -- :Emit a char", &wordEmit, false);
     _ = try forth.definePrimitiveDesc("cls", " -- :Clear the screen", &wordClearScreen, false);

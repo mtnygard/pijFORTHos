@@ -290,6 +290,7 @@ pub const Forth = struct {
 
     pub fn print(this: *Forth, comptime fmt: []const u8, args: anytype) !void {
         try this.console.print(fmt, args);
+        bsp.io.stringSend(fmt);
     }
 
     pub fn writer(this: *Forth) fbcons.FrameBufferConsole.Writer {

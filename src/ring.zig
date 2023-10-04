@@ -4,19 +4,21 @@ const std = @import("std");
 // Ring buffer implementation
 //
 
+const RingSize: usize = 32767;
+
 pub fn Ring(comptime T: anytype) type {
     return struct {
         const Self = @This();
 
-        buffer: [64]T,
-        capacity: u8 = undefined,
-        consume: u8 = undefined,
-        produce: u8 = undefined,
+        buffer: [RingSize]T,
+        capacity: u16 = undefined,
+        consume: u16 = undefined,
+        produce: u16 = undefined,
 
         pub fn init() Self {
             return .{
-                .buffer = std.mem.zeroes([64]T),
-                .capacity = 64,
+                .buffer = std.mem.zeroes([RingSize]T),
+                .capacity = RingSize,
                 .consume = 0,
                 .produce = 0,
             };
@@ -68,10 +70,10 @@ test "consume what you produce" {
 test "consume up to capacity items" {
     const expect = std.testing.expect;
     var ring = Ring(usize).init();
-    for (0..64) |i| {
+    for (0..RingSize) |i| {
         ring.enqueue(i);
     }
-    for (0..64) |i| {
+    for (0..RingSize) |i| {
         try expect(i == ring.dequeue());
     }
 }
@@ -96,11 +98,11 @@ test "consumer chases producer" {
 test "items are overwritten" {
     const expect = std.testing.expect;
     var ring = Ring(usize).init();
-    for (0..65) |i| {
+    for (0..1025) |i| {
         ring.enqueue(i);
     }
-    try expect(64 == ring.dequeue());
-    for (1..65) |i| {
+    try expect(1024 == ring.dequeue());
+    for (1..1025) |i| {
         try expect(i == ring.dequeue());
     }
     try expect(ring.empty());
