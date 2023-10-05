@@ -3,7 +3,7 @@ const root = @import("root");
 const arch = @import("architecture.zig");
 const hal = @import("hal.zig");
 
-const serial_log_level: u2 = 1;
+const serial_log_level: u2 = 0;
 const log_level: u2 = 1;
 
 pub inline fn ticks() u64 {

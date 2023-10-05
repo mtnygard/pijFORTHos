@@ -59,59 +59,79 @@ fn kernelInit() void {
 
     // State: one core, interrupts, MMU, heap Allocator, no display, no serial
     uart_valid = true;
+    const msg = "hello world abcdefghijklmnop";
 
-    // State: one core, interrupts, MMU, heap Allocator, no display, serial
-    hal.video_controller.allocFrameBuffer(&fb, 1024, 768, 8, &frame_buffer.default_palette);
+    const use_puts = false;
 
-    frame_buffer_console.init(&hal.serial);
-    console_valid = true;
-
-    board.init(&os.page_allocator);
-    hal.info_controller.inspect(&board);
-
-    // hal.timer.schedule(200000, printOneDot, &.{});
-
-    // State: one core, interrupts, MMU, heap Allocator, display,
-    // serial, logging available
-
-    kprint("Board model {s} (a {s}) with {?}MB\n\n", .{
-        board.model.name,
-        board.model.processor,
-        board.model.memory,
-    });
-    kprint("    MAC address: {?}\n", .{board.device.mac_address});
-    kprint("  Serial number: {?}\n", .{board.device.serial_number});
-    kprint("Manufactured by: {?s}\n\n", .{board.device.manufacturer});
-
-    diagnostics() catch |err| {
-        kerror(@src(), "Error printing diagnostics: {any}\n", .{err});
-        hal.io.uart_writer.print("Error printing diagnostics: {any}\n", .{err}) catch {};
-    };
-
-    hal.usb.powerOn();
-
-    interpreter.init(os.page_allocator, &frame_buffer_console) catch |err| {
-        kerror(@src(), "Forth init: {any}\n", .{err});
-    };
-
-    interpreter.defineStruct("fbcons", fbcons.FrameBufferConsole) catch |err| {
-        kerror(@src(), "Forth defineStruct: {any}\n", .{err});
-    };
-
-    supplyAddress("fbcons", @intFromPtr(&frame_buffer_console));
-    supplyAddress("fb", @intFromPtr(fb.base));
-    supplyAddress("board", @intFromPtr(&board));
-    supplyUsize("fbsize", fb.buffer_size);
-
-    arch.cpu.exceptions.markUnwindPoint(&global_unwind_point);
-    global_unwind_point.pc = @as(u64, @intFromPtr(&repl));
-
-    // State: one core, interrupts, MMU, heap Allocator, display,
-    // serial, logging available, exception recovery available
-    repl();
-
+    while (true) {
+        for (1..msg.len) |i| {
+            if (use_puts) {
+                // This works reliably.
+                _ = hal.serial.puts(msg[0..i]);
+            } else {
+                // This panics every time!
+                hal.serial_writer.print("the msg is {s}\n", .{msg[0..i]}) catch {
+                    _ = hal.serial.puts("error in serial writer print\n");
+                };
+            }
+        }
+        for (0..1000000) |_| {}
+    }
+    //
+    //    // State: one core, interrupts, MMU, heap Allocator, no display, serial
+    //    hal.video_controller.allocFrameBuffer(&fb, 1024, 768, 8, &frame_buffer.default_palette);
+    //
+    //    frame_buffer_console.init(&hal.serial);
+    //    console_valid = true;
+    //
+    //    board.init(&os.page_allocator);
+    //    hal.info_controller.inspect(&board);
+    //
+    //    // hal.timer.schedule(200000, printOneDot, &.{});
+    //
+    //    // State: one core, interrupts, MMU, heap Allocator, display,
+    //    // serial, logging available
+    //
+    //    kprint("Board model {s} (a {s}) with {?}MB\n\n", .{
+    //        board.model.name,
+    //        board.model.processor,
+    //        board.model.memory,
+    //    });
+    //    kprint("    MAC address: {?}\n", .{board.device.mac_address});
+    //    kprint("  Serial number: {?}\n", .{board.device.serial_number});
+    //    kprint("Manufactured by: {?s}\n\n", .{board.device.manufacturer});
+    //
+    //    diagnostics() catch |err| {
+    //        kerror(@src(), "Error printing diagnostics: {any}\n", .{err});
+    //        hal.io.uart_writer.print("Error printing diagnostics: {any}\n", .{err}) catch {};
+    //    };
+    //
+    //    hal.usb.powerOn();
+    //
+    //    uart_valid = true;
+    //
+    //    interpreter.init(os.page_allocator, &frame_buffer_console) catch |err| {
+    //        kerror(@src(), "Forth init: {any}\n", .{err});
+    //    };
+    //
+    //    interpreter.defineStruct("fbcons", fbcons.FrameBufferConsole) catch |err| {
+    //        kerror(@src(), "Forth defineStruct: {any}\n", .{err});
+    //    };
+    //
+    //    supplyAddress("fbcons", @intFromPtr(&frame_buffer_console));
+    //    supplyAddress("fb", @intFromPtr(fb.base));
+    //    supplyAddress("board", @intFromPtr(&board));
+    //    supplyUsize("fbsize", fb.buffer_size);
+    //
+    //    arch.cpu.exceptions.markUnwindPoint(&global_unwind_point);
+    //    global_unwind_point.pc = @as(u64, @intFromPtr(&repl));
+    //
+    //    // State: one core, interrupts, MMU, heap Allocator, display,
+    //    // serial, logging available, exception recovery available
+    //    repl();
+    //
     // Does not return
-    qemu.exit(0);
+    //qemu.exit(0);
 
     unreachable;
 }
