@@ -58,6 +58,9 @@ pub fn init(alloc: *Allocator) !void {
     pl011_uart.init(peripheral_base + 0x201000, &hal.interrupt_controller, &gpio);
     hal.serial = pl011_uart.serial();
 
+    // hack while debugging stack corruption problem
+    local_interrupt_controller.uart = &pl011_uart;
+
     mailbox.init(peripheral_base + 0xB880, &hal.interrupt_controller, &soc_bus.bus_ranges);
     peripheral_clock_controller.init(&mailbox);
     power_controller.init(&mailbox);

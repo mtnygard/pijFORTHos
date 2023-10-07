@@ -6,6 +6,8 @@ const IrqHandlerFn = hal.common.IrqHandlerFn;
 const exceptions = @import("../architecture.zig").cpu.exceptions;
 const ExceptionContext = exceptions.ExceptionContext;
 
+const pl011 = @import("../drivers/pl011.zig");
+
 // ----------------------------------------------------------------------
 // Interrupt controller
 // ----------------------------------------------------------------------
@@ -53,6 +55,8 @@ pub const LocalInterruptController = struct {
 
     handlers: [max_handlers]Handler = undefined,
     registers: *volatile Registers = undefined,
+
+    uart: *pl011.Pl011Uart = undefined,
 
     pub fn init(self: *LocalInterruptController, interrupt_controller_base: u64) void {
         self.registers = @ptrFromInt(interrupt_controller_base);
@@ -139,8 +143,15 @@ pub const LocalInterruptController = struct {
         self.basicIrqHandleIfRaised(basic_interrupts, bit(16), mkid(2, 22));
         self.basicIrqHandleIfRaised(basic_interrupts, bit(17), mkid(2, 23));
         self.basicIrqHandleIfRaised(basic_interrupts, bit(18), mkid(2, 24));
-        self.basicIrqHandleIfRaised(basic_interrupts, bit(19), mkid(2, 25));
+        //        self.basicIrqHandleIfRaised(basic_interrupts, bit(19), mkid(2, 25));
         self.basicIrqHandleIfRaised(basic_interrupts, bit(20), mkid(2, 30));
+
+        const UART_IRQ_BIT: u32 = @as(u32, 1) << 19;
+        const UART_IRQ_ID: IrqId = mkid(2, 25);
+
+        if (self.uart != undefined and 0 != (basic_interrupts & UART_IRQ_BIT)) {
+            self.uart.irqHandle(UART_IRQ_ID);
+        }
 
         // Handle the pending 1 interupts, but mask off ones which we
         // already would have handled.

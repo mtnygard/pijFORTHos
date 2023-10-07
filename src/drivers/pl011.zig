@@ -276,7 +276,7 @@ pub const Pl011Uart = struct {
         for (0..buf.len) |i| {
             _ = self.putc(buf[i]);
             // This slows down output enough so that it doesn't panic.
-            for (0..100) |_| {}
+            //            for (0..100) |_| {}
         }
         return buf.len;
     }
@@ -339,8 +339,8 @@ pub const Pl011Uart = struct {
 
     pub fn stringSend(self: *Pl011Uart, str: []const u8) usize {
         // mask interrupts so we don't get interrupted in the middle of this function.
-        cpu.exceptions.irqDisable();
-        defer cpu.exceptions.irqEnable();
+        //        cpu.exceptions.irqDisable();
+        //        defer cpu.exceptions.irqEnable();
 
         // enable transmit interrupt (even if it already was)
         self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .raised;
@@ -380,8 +380,8 @@ pub const Pl011Uart = struct {
 
     pub fn send(self: *Pl011Uart, ch: u8) bool {
         // mask interrupts so we don't get interrupted in the middle of this function.
-        cpu.exceptions.irqDisable();
-        defer cpu.exceptions.irqEnable();
+        // cpu.exceptions.irqDisable();
+        // defer cpu.exceptions.irqEnable();
 
         // if ready to send and no interrupt raised
         var interrupt_is_raised = (self.registers.raw_interrupt_status.transmit_interrupt_status == .raised);
