@@ -21,7 +21,15 @@ const SerialWriter = std.io.Writer(*common.Serial, error{}, serialStringSend);
 pub var serial_writer: SerialWriter = undefined;
 
 fn serialStringSend(uart: *common.Serial, str: []const u8) !usize {
-    return uart.puts(str);
+    _ = uart;
+    //_ = str;
+    //_ = uart.puts(str);
+    return str.len;
+    //return uart.puts("Serial string send!");
+    //    if (str.len > 5) {
+    //        _ = uart.puts(str[0..4]);
+    //    }
+    //    return str.len;
 }
 
 pub fn init(root: *devicetree.Fdt.Node, allocator: *Allocator) !void {

@@ -41,6 +41,37 @@ pub var global_unwind_point = arch.cpu.exceptions.UnwindPoint{
 pub var uart_valid = false;
 pub var console_valid = false;
 
+fn recursivePrint(a: i64, x: [798]usize, b: i64, c: i64) [798]usize {
+    var ret: [798]usize = undefined;
+    for (0..ret.len) |k| {
+        ret[k] = k + x[k];
+    }
+
+    const q = @divTrunc(44, 7);
+
+    if (a <= 0 or q > 1000000) {
+        _ = hal.serial.puts("a is zero, all done\n\n");
+        return ret;
+    } else if (b != (a + 7)) {
+        _ = hal.serial.puts("b is not a + 7\n");
+    } else if (c != (a - 9)) {
+        _ = hal.serial.puts("c is not a - 9\n");
+    }
+
+    const seed = a - 1;
+    const result = recursivePrint(seed - 1, x, seed - 1 + 7, seed - 1 - 9);
+
+    if (result.len != 798) {
+        _ = hal.serial.puts("result len is not right\n\n");
+    }
+    for (0..result.len) |k| {
+        if (result[k] != x[k] + k) {
+            _ = hal.serial.puts("result array is not right\n\n");
+        }
+    }
+    return ret;
+}
+
 fn kernelInit() void {
     // State: one core, no interrupts, no MMU, no heap Allocator, no display, no serial
     arch.cpu.mmu.init();
@@ -59,79 +90,21 @@ fn kernelInit() void {
 
     // State: one core, interrupts, MMU, heap Allocator, no display, no serial
     uart_valid = true;
-    const msg = "hello world abcdefghijklmnop";
 
-    const use_puts = false;
+    var data: [798]usize = undefined;
+    for (0..data.len) |ii| {
+        data[ii] = @intCast(ii);
+    }
 
     while (true) {
-        for (1..msg.len) |i| {
-            if (use_puts) {
-                // This works reliably.
-                _ = hal.serial.puts(msg[0..i]);
-            } else {
-                // This panics every time!
-                hal.serial_writer.print("the msg is {s}\n", .{msg[0..i]}) catch {
-                    _ = hal.serial.puts("error in serial writer print\n");
-                };
-            }
+        hal.serial_writer.print("top of while loop {}\n", .{55}) catch {};
+        _ = hal.serial.puts("top of while loop\n");
+        for (1..5) |i| {
+            const j: i64 = @intCast(i % 9);
+            _ = recursivePrint(j, data, j + 7, j - 9);
         }
-        for (0..1000000) |_| {}
+        _ = hal.serial.puts("bottom of while loop\n");
     }
-    //
-    //    // State: one core, interrupts, MMU, heap Allocator, no display, serial
-    //    hal.video_controller.allocFrameBuffer(&fb, 1024, 768, 8, &frame_buffer.default_palette);
-    //
-    //    frame_buffer_console.init(&hal.serial);
-    //    console_valid = true;
-    //
-    //    board.init(&os.page_allocator);
-    //    hal.info_controller.inspect(&board);
-    //
-    //    // hal.timer.schedule(200000, printOneDot, &.{});
-    //
-    //    // State: one core, interrupts, MMU, heap Allocator, display,
-    //    // serial, logging available
-    //
-    //    kprint("Board model {s} (a {s}) with {?}MB\n\n", .{
-    //        board.model.name,
-    //        board.model.processor,
-    //        board.model.memory,
-    //    });
-    //    kprint("    MAC address: {?}\n", .{board.device.mac_address});
-    //    kprint("  Serial number: {?}\n", .{board.device.serial_number});
-    //    kprint("Manufactured by: {?s}\n\n", .{board.device.manufacturer});
-    //
-    //    diagnostics() catch |err| {
-    //        kerror(@src(), "Error printing diagnostics: {any}\n", .{err});
-    //        hal.io.uart_writer.print("Error printing diagnostics: {any}\n", .{err}) catch {};
-    //    };
-    //
-    //    hal.usb.powerOn();
-    //
-    //    uart_valid = true;
-    //
-    //    interpreter.init(os.page_allocator, &frame_buffer_console) catch |err| {
-    //        kerror(@src(), "Forth init: {any}\n", .{err});
-    //    };
-    //
-    //    interpreter.defineStruct("fbcons", fbcons.FrameBufferConsole) catch |err| {
-    //        kerror(@src(), "Forth defineStruct: {any}\n", .{err});
-    //    };
-    //
-    //    supplyAddress("fbcons", @intFromPtr(&frame_buffer_console));
-    //    supplyAddress("fb", @intFromPtr(fb.base));
-    //    supplyAddress("board", @intFromPtr(&board));
-    //    supplyUsize("fbsize", fb.buffer_size);
-    //
-    //    arch.cpu.exceptions.markUnwindPoint(&global_unwind_point);
-    //    global_unwind_point.pc = @as(u64, @intFromPtr(&repl));
-    //
-    //    // State: one core, interrupts, MMU, heap Allocator, display,
-    //    // serial, logging available, exception recovery available
-    //    repl();
-    //
-    // Does not return
-    //qemu.exit(0);
 
     unreachable;
 }

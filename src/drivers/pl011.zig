@@ -272,7 +272,13 @@ pub const Pl011Uart = struct {
     }
 
     pub fn puts(self: *Pl011Uart, buf: []const u8) usize {
-        return self.stringSend(buf);
+        //return self.stringSend(buf);
+        for (0..buf.len) |i| {
+            _ = self.putc(buf[i]);
+            // This slows down output enough so that it doesn't panic.
+            for (0..100) |_| {}
+        }
+        return buf.len;
     }
 
     pub fn hasc(self: *Pl011Uart) bool {
