@@ -41,40 +41,38 @@ pub var global_unwind_point = arch.cpu.exceptions.UnwindPoint{
 pub var uart_valid = false;
 pub var console_valid = false;
 
-fn recursivePrint(a: i64, x: [798]usize, b: i64, c: i64) [798]usize {
-    var ret: [798]usize = undefined;
-    for (0..ret.len) |k| {
-        ret[k] = k + x[k];
+inline fn pString(str: []const u8) void {
+    _ = raspi3.pl011_uart.stringSend(str);
+}
+
+//const returnSize = 798;
+//const returnSize = 6000;
+//const returnSize = 50;
+const returnSize = 4000;
+
+const waitN = 10000000;
+
+// With a small returnSize this function works fine. With a
+// returnSize of at least 2000 it hangs around 14 calls deep.
+// With a returnSize of 4000 it hangs at 5 or 6 deep.
+fn recursivePrint(a: u8, x: [returnSize]usize) [returnSize]usize {
+    const maxDepth = 40;
+
+    var msg: [4]u8 = undefined;
+    msg[0] = 'a';
+    msg[1] = '=';
+    msg[2] = '0' + a;
+    msg[3] = '\n';
+
+    pString(&msg);
+
+    if (a >= maxDepth) {
+        return x;
     }
 
-    const q = @divTrunc(44, 7);
+    var result = recursivePrint(a + 1, x);
 
-    if (a <= 0 or q > 1000000) {
-        //        _ = hal.serial.puts("a is zero, all done\n\n");
-        _ = raspi3.pl011_uart.stringSend("a is zero, all done\n\n");
-        return ret;
-    } else if (b != (a + 7)) {
-        //        _ = hal.serial.puts("b is not a + 7\n");
-        _ = raspi3.pl011_uart.stringSend("b is not a + 7\n");
-    } else if (c != (a - 9)) {
-        //        _ = hal.serial.puts("c is not a - 9\n");
-        _ = raspi3.pl011_uart.stringSend("c is not a - 9\n");
-    }
-
-    const seed = a - 1;
-    const result = recursivePrint(seed - 1, x, seed - 1 + 7, seed - 1 - 9);
-
-    if (result.len != 798) {
-        //        _ = hal.serial.puts("result len is not right\n\n");
-        _ = raspi3.pl011_uart.stringSend("result len is not right\n\n");
-    }
-    for (0..result.len) |k| {
-        if (result[k] != x[k] + k) {
-            //            _ = hal.serial.puts("result array is not right\n\n");
-            _ = raspi3.pl011_uart.stringSend("result array is not right\n\n");
-        }
-    }
-    return ret;
+    return result;
 }
 
 fn kernelInit() void {
@@ -96,21 +94,20 @@ fn kernelInit() void {
     // State: one core, interrupts, MMU, heap Allocator, no display, no serial
     uart_valid = true;
 
-    var data: [798]usize = undefined;
+    // Set up some data for recursivePrint.
+
+    var data: [returnSize]usize = undefined;
     for (0..data.len) |ii| {
         data[ii] = @intCast(ii);
     }
 
+    // Call recursivePrint over and over. This hangs on both the emulator
+    // and hardware with large values (~2000) for returnSize.
     while (true) {
-        //        hal.serial_writer.print("top of while loop {}\n", .{55}) catch {};
-        //        _ = hal.serial.puts("top of while loop\n");
-        _ = raspi3.pl011_uart.stringSend("top of while loop\n");
-        for (1..5) |i| {
-            const j: i64 = @intCast(i % 9);
-            _ = recursivePrint(j, data, j + 7, j - 9);
-        }
-        //        _ = hal.serial.puts("bottom of while loop\n");
-        _ = raspi3.pl011_uart.stringSend("bottom of while loop\n");
+        pString("top of while loop\n");
+        for (0..waitN) |_| {}
+        _ = recursivePrint(0, data);
+        pString("bottom of while loop\n");
     }
 
     unreachable;
