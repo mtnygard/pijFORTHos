@@ -1,3 +1,4 @@
+const root = @import("root");
 const std = @import("std");
 const FixedBufferAllocator = std.heap.FixedBufferAllocator;
 const RingBuffer = std.RingBuffer;
@@ -242,7 +243,7 @@ pub const Pl011Uart = struct {
         };
 
         // Enable receive interrupts. Transmit interrupts are enabled
-        // when data is written.
+        // later when data is written.
         self.registers.interrupt_mask_set_clear.receive_interrupt_mask = .raised;
         self.registers.control = .{ .transmit_enable = .enable, .receive_enable = .enable };
 
@@ -305,6 +306,13 @@ pub const Pl011Uart = struct {
         cpu.barriers.barrierMemoryRead();
         defer cpu.barriers.barrierMemoryWrite();
 
+        //  If I uncomment this loop, then characters flow as expected
+        //        for (0..100) |_| {}
+
+        //  Or if I uncomment any of the mring.append calls,
+        //  characters flow as expected.
+        //        root.mring.append("Pl011.irqHandle");
+
         var interrupts_raised = self.registers.masked_interrupt_status;
 
         if (interrupts_raised.receive_masked_interrupt_status == .raised) {
@@ -316,10 +324,12 @@ pub const Pl011Uart = struct {
 
         if (interrupts_raised.transmit_masked_interrupt_status == .raised) {
             if (self.write_buffer.read()) |ch| {
+                // root.mring.append("X");
                 self.xmit(ch);
             }
 
             if (self.write_buffer.isEmpty()) {
+                // root.mring.append("E");
                 self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .not_raised;
             }
         }
@@ -329,6 +339,14 @@ pub const Pl011Uart = struct {
     // Buffered IO - interrupt-driven with ring buffer
     // ----------------------------------------------------------------------
 
+    inline fn allowTxInterrupt(self: *Pl011Uart) void {
+        self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .raised;
+    }
+
+    inline fn disallowTxInterrupt(self: *Pl011Uart) void {
+        self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .not_raised;
+    }
+
     inline fn xmitInterruptRaised(self: *Pl011Uart) bool {
         return (self.registers.raw_interrupt_status.transmit_interrupt_status == .raised);
     }
@@ -337,67 +355,48 @@ pub const Pl011Uart = struct {
         return self.write_buffer.data.len - self.write_buffer.len();
     }
 
-    pub fn stringSend(self: *Pl011Uart, str: []const u8) usize {
-        // mask interrupts so we don't get interrupted in the middle of this function.
-        //        cpu.exceptions.irqDisable();
-        //        defer cpu.exceptions.irqEnable();
+    pub fn send(self: *Pl011Uart, ch: u8) bool {
+        // Add the character to the buffer.
+        self.write_buffer.writeAssumeCapacity(ch);
 
-        // enable transmit interrupt (even if it already was)
-        self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .raised;
+        self.kickstartMyUart();
 
-        var rest = str;
-        var bytes_sent: usize = 0;
-
-        // if ready to send and no interrupt raised
-        if (self.xmitSpaceAvailable() and !self.xmitInterruptRaised()) {
-            // take first ch from string, write it to data register
-            // when this ch is done sending, pl011 will raise a
-            // UARTTXINTR. this is the way to kick-start
-            // interrupt-driven sending.
-            var ch = str[0];
-            rest = str[1..];
-            self.xmit(ch);
-            bytes_sent += 1;
-        }
-
-        // TODO Do I need a mutex around this? The interrupt handler
-        // could read from this buffer even while we are adding to it.
-
-        // find out how much space remains in the write buffer
-        var space_available_to_write = self.writeBufferSpaceAvailable();
-        var bytes_to_write = @min(space_available_to_write, rest.len);
-
-        // enqueue rest of str, these will be send from the interrupt
-        // handler
-        if (self.write_buffer.writeSlice(rest[0..bytes_to_write])) |_| {
-            return bytes_sent + bytes_to_write;
-        } else |err| {
-            switch (err) {
-                RingBuffer.Error.Full => return bytes_sent,
-            }
-        }
+        return true;
     }
 
-    pub fn send(self: *Pl011Uart, ch: u8) bool {
-        // mask interrupts so we don't get interrupted in the middle of this function.
-        // cpu.exceptions.irqDisable();
-        // defer cpu.exceptions.irqEnable();
+    // If no character is sending, make sure UARTTXINTR will be
+    // raised and push the first character into the data register
+    fn kickstartMyUart(self: *Pl011Uart) void {
+        // If there's room to send a character
+        if (self.xmitSpaceAvailable()) {
+            // And there's a character to send
+            if (self.write_buffer.read()) |ch| {
 
-        // if ready to send and no interrupt raised
-        var interrupt_is_raised = (self.registers.raw_interrupt_status.transmit_interrupt_status == .raised);
+                // THIS IS THE ANOMALY. Uncommenting this line does
+                // NOT result in characters flowing as expected. Only
+                // the first character appears, then nothing else.
+                for (0..100) |_| {}
 
-        if (self.xmitSpaceAvailable() and !interrupt_is_raised) {
-            // when this ch is done sending, will raise a UARTTXINTR
-            self.xmit(ch);
-            return true;
-        } else {
-            // enable transmit interrupt (even if it already was)
-            self.registers.interrupt_mask_set_clear.transmit_interrupt_mask = .raised;
-            // something is already sending, enqueue this for when it finishes
-            if (self.write_buffer.write(ch)) {
-                return true;
-            } else |_| {
-                return false;
+                // Make sure we'll receive an interrupt when the
+                // character is done sending.
+                self.allowTxInterrupt();
+
+                // If I uncomment this line then characters flow as
+                // expected.
+                // for (0..50) |_| {}
+
+                // But if I use this line, then characters flow, but
+                // there is a lot of dropping. The threshold seems to
+                // be between 25 and 50 cycles.
+                // for (0..25) |_| {}
+
+                // If I uncomment this line, I get a continuous flow
+                // of characters but a lot of dropping. This is
+                // probably a timing effect rather than an actual
+                // coherence problem.
+                // cpu.barriers.barrierMemory();
+
+                self.xmit(ch);
             }
         }
     }
