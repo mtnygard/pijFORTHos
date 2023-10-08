@@ -51,14 +51,14 @@ fn recursivePrint(a: i64, x: [798]usize, b: i64, c: i64) [798]usize {
 
     if (a <= 0 or q > 1000000) {
         //        _ = hal.serial.puts("a is zero, all done\n\n");
-        _ = raspi3.pl011_uart.stringSend("a is zero, all done\n\n");
+        _ = raspi3.pl011_uart.puts("a is zero, all done\n\n");
         return ret;
     } else if (b != (a + 7)) {
         //        _ = hal.serial.puts("b is not a + 7\n");
-        _ = raspi3.pl011_uart.stringSend("b is not a + 7\n");
+        _ = raspi3.pl011_uart.puts("b is not a + 7\n");
     } else if (c != (a - 9)) {
         //        _ = hal.serial.puts("c is not a - 9\n");
-        _ = raspi3.pl011_uart.stringSend("c is not a - 9\n");
+        _ = raspi3.pl011_uart.puts("c is not a - 9\n");
     }
 
     const seed = a - 1;
@@ -66,12 +66,12 @@ fn recursivePrint(a: i64, x: [798]usize, b: i64, c: i64) [798]usize {
 
     if (result.len != 798) {
         //        _ = hal.serial.puts("result len is not right\n\n");
-        _ = raspi3.pl011_uart.stringSend("result len is not right\n\n");
+        _ = raspi3.pl011_uart.puts("result len is not right\n\n");
     }
     for (0..result.len) |k| {
         if (result[k] != x[k] + k) {
             //            _ = hal.serial.puts("result array is not right\n\n");
-            _ = raspi3.pl011_uart.stringSend("result array is not right\n\n");
+            _ = raspi3.pl011_uart.puts("result array is not right\n\n");
         }
     }
     return ret;
@@ -104,13 +104,13 @@ fn kernelInit() void {
     while (true) {
         //        hal.serial_writer.print("top of while loop {}\n", .{55}) catch {};
         //        _ = hal.serial.puts("top of while loop\n");
-        _ = raspi3.pl011_uart.stringSend("top of while loop\n");
+        _ = raspi3.pl011_uart.puts("top of while loop\n");
         for (1..5) |i| {
             const j: i64 = @intCast(i % 9);
             _ = recursivePrint(j, data, j + 7, j - 9);
         }
         //        _ = hal.serial.puts("bottom of while loop\n");
-        _ = raspi3.pl011_uart.stringSend("bottom of while loop\n");
+        _ = raspi3.pl011_uart.puts("bottom of while loop\n");
     }
 
     unreachable;
