@@ -47,42 +47,6 @@ pub var global_unwind_point = arch.cpu.exceptions.UnwindPoint{
 pub var uart_valid = false;
 pub var console_valid = false;
 
-fn recursivePrint(a: i64, x: [798]usize, b: i64, c: i64) [798]usize {
-    var ret: [798]usize = undefined;
-    for (0..ret.len) |k| {
-        ret[k] = k + x[k];
-    }
-
-    const q = @divTrunc(44, 7);
-
-    if (a <= 0 or q > 1000000) {
-        //        _ = hal.serial.puts("a is zero, all done\n\n");
-        _ = raspi3.pl011_uart.puts("a is zero, all done\n\n");
-        return ret;
-    } else if (b != (a + 7)) {
-        //        _ = hal.serial.puts("b is not a + 7\n");
-        _ = raspi3.pl011_uart.puts("b is not a + 7\n");
-    } else if (c != (a - 9)) {
-        //        _ = hal.serial.puts("c is not a - 9\n");
-        _ = raspi3.pl011_uart.puts("c is not a - 9\n");
-    }
-
-    const seed = a - 1;
-    const result = recursivePrint(seed - 1, x, seed - 1 + 7, seed - 1 - 9);
-
-    if (result.len != 798) {
-        //        _ = hal.serial.puts("result len is not right\n\n");
-        _ = raspi3.pl011_uart.puts("result len is not right\n\n");
-    }
-    for (0..result.len) |k| {
-        if (result[k] != x[k] + k) {
-            //            _ = hal.serial.puts("result array is not right\n\n");
-            _ = raspi3.pl011_uart.puts("result array is not right\n\n");
-        }
-    }
-    return ret;
-}
-
 fn kernelInit() void {
     // State: one core, no interrupts, no MMU, no heap Allocator, no display, no serial
     arch.cpu.mmu.init();
@@ -105,20 +69,14 @@ fn kernelInit() void {
     // State: one core, interrupts, MMU, heap Allocator, no display, no serial
     uart_valid = true;
 
-    var data: [798]usize = undefined;
-    for (0..data.len) |ii| {
-        data[ii] = @intCast(ii);
-    }
+    const msg = "0123456789A123456789B123456789C123456789*";
 
     while (true) {
-        //        hal.serial_writer.print("top of while loop {}\n", .{55}) catch {};
-        //        _ = hal.serial.puts("top of while loop\n");
         _ = raspi3.pl011_uart.puts("top of while loop\n");
-        for (1..5) |i| {
-            const j: i64 = @intCast(i % 9);
-            _ = recursivePrint(j, data, j + 7, j - 9);
+        for (1..(msg.len + 1)) |i| {
+            _ = raspi3.pl011_uart.puts(msg[0..i]);
+            _ = raspi3.pl011_uart.puts("\n");
         }
-        //        _ = hal.serial.puts("bottom of while loop\n");
         _ = raspi3.pl011_uart.puts("bottom of while loop\n");
     }
 
