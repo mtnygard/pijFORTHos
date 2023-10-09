@@ -356,10 +356,19 @@ pub const Pl011Uart = struct {
     }
 
     pub fn send(self: *Pl011Uart, ch: u8) bool {
+        // Take one of the two alternatives here.
+
+        // Alternative one.
         // Add the character to the buffer.
         self.write_buffer.writeAssumeCapacity(ch);
-
         self.kickstartMyUart();
+
+        // Alternative two.
+        // Do a completely synchronous output.
+        // This results in pitch perfect output.
+
+        //while (!self.xmitSpaceAvailable()) {}
+        //self.xmit(ch);
 
         return true;
     }
@@ -375,7 +384,7 @@ pub const Pl011Uart = struct {
                 // THIS IS THE ANOMALY. Uncommenting this line does
                 // NOT result in characters flowing as expected. Only
                 // the first character appears, then nothing else.
-                for (0..100) |_| {}
+                //for (0..100) |_| {}
 
                 // Make sure we'll receive an interrupt when the
                 // character is done sending.
@@ -383,7 +392,7 @@ pub const Pl011Uart = struct {
 
                 // If I uncomment this line then characters flow as
                 // expected.
-                // for (0..50) |_| {}
+                //for (0..50) |_| {}
 
                 // But if I use this line, then characters flow, but
                 // there is a lot of dropping. The threshold seems to
